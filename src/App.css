@@ -1,0 +1,157 @@
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) minmax(320px, 1fr);
+  gap: 24px;
+  padding: 32px;
+  background:
+    radial-gradient(circle at top left, rgba(33, 82, 255, 0.16), transparent 32%),
+    linear-gradient(180deg, #0a1224 0%, #0d172b 100%);
+  color: #ebf0ff;
+}
+
+.panel {
+  background: rgba(10, 18, 36, 0.86);
+  border: 1px solid rgba(117, 138, 184, 0.24);
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 24px 60px rgba(2, 8, 22, 0.35);
+}
+
+.eyebrow {
+  display: inline-block;
+  margin-bottom: 10px;
+  color: #87d7ff;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+h1,
+h2 {
+  margin: 0 0 12px;
+}
+
+.lede {
+  margin: 0 0 24px;
+  color: #c7d3ef;
+  line-height: 1.6;
+}
+
+.form {
+  display: grid;
+  gap: 14px;
+}
+
+label {
+  font-weight: 600;
+}
+
+textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(117, 138, 184, 0.35);
+  background: rgba(5, 12, 24, 0.85);
+  color: #ebf0ff;
+  font: inherit;
+}
+
+button,
+.download-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 18px;
+  background: linear-gradient(135deg, #28d8ff 0%, #7d7aff 100%);
+  color: #04111d;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.button-row {
+  display: grid;
+  gap: 10px;
+}
+
+.helper-text,
+.empty-state p,
+.metadata dd {
+  color: #c7d3ef;
+}
+
+.error {
+  margin-top: 16px;
+  color: #ffb4c0;
+}
+
+.result-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+}
+
+.preview-frame {
+  min-height: 340px;
+  padding: 16px;
+  border-radius: 20px;
+  background: #f8fbff;
+}
+
+.preview-frame img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 12px;
+}
+
+.metadata {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.metadata div {
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.metadata dt {
+  margin-bottom: 6px;
+  color: #87d7ff;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.metadata dd {
+  margin: 0;
+}
+
+@media (max-width: 960px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    padding: 20px;
+  }
+
+  .metadata {
+    grid-template-columns: 1fr;
+  }
+}

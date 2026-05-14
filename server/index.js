@@ -56,6 +56,17 @@ app.use((error, _request, response, _next) => {
   });
 });
 
-app.listen(port, () => {
+const server = app.listen(port, () => {
   console.log(`Simple AI Agents API listening on http://localhost:${port}`);
+});
+
+server.on("error", (error) => {
+  if (error?.code === "EADDRINUSE") {
+    console.error(
+      `Port ${port} is already in use. Stop the other process, set PORT to a free port, or run "npm run dev" (it picks a free port when PORT is unset).`,
+    );
+    process.exit(1);
+  }
+  console.error(error);
+  process.exit(1);
 });

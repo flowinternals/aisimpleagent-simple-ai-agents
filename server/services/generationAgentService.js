@@ -1,4 +1,5 @@
-import { generateWithProvider } from "../providers/providerAdapter.js";
+import { HttpError } from "../httpError.js";
+import { ProviderAdapterError, generateWithProvider } from "../providers/providerAdapter.js";
 
 function buildProviderPrompt(prompt) {
   return [
@@ -28,7 +29,19 @@ function buildGenerationApiData(providerResult, generationTimeMs) {
 export async function runAgentGeneration({ prompt }) {
   const startedAt = Date.now();
   const providerPrompt = buildProviderPrompt(prompt);
-  const providerResult = await generateWithProvider({ prompt, providerPrompt });
+  let providerResult;
+  try {
+    providerResult = await generateWithProvider({ prompt, providerPrompt });
+  } catch (error) {
+    if (error instanceof ProviderAdapterError && error.code === "PROVIDER_NOT_AVAILABLE") {
+      throw new HttpError(
+        503,
+        "PROVIDER_NOT_AVAILABLE",
+        "Image generation is not available for the configured provider yet.",
+      );
+    }
+    throw error;
+  }
   const generationTimeMs = Date.now() - startedAt;
 
   return buildGenerationApiData(providerResult, generationTimeMs);

@@ -31,6 +31,11 @@ function chunkText(value, maxLength) {
   return lines.slice(0, 6);
 }
 
+/**
+ * Mock implementation of diagram generation for local/dev.
+ * @param {{ prompt: string, providerPrompt: string }} args
+ * @returns {Promise<import("../contracts/generationAdapterResult.js").NormalizedGenerationResult>}
+ */
 export async function generateMockResult({ prompt, providerPrompt }) {
   const lines = chunkText(prompt, 44);
   const promptNote = chunkText(providerPrompt, 56)[0] || "Mock provider starter output";

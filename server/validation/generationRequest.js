@@ -11,9 +11,14 @@ const generationRequestSchema = z.object({
 export function validateGenerationRequest(payload) {
   const parsed = generationRequestSchema.safeParse(payload);
   if (!parsed.success) {
+    const issues = parsed.error.issues.map((issue) => ({
+      path: issue.path.join(".") || "(root)",
+      message: issue.message,
+    }));
     return {
       success: false,
-      error: parsed.error.issues[0]?.message || "Invalid request payload.",
+      error: issues[0]?.message || "Invalid request payload.",
+      issues,
     };
   }
 

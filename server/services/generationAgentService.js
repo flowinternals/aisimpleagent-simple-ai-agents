@@ -10,8 +10,10 @@ function buildProviderPrompt(prompt) {
 }
 
 export async function runAgentGeneration({ prompt }) {
+  const startedAt = Date.now();
   const providerPrompt = buildProviderPrompt(prompt);
   const providerResult = await generateWithProvider({ prompt, providerPrompt });
+  const generationTimeMs = Date.now() - startedAt;
 
   return {
     imageData: providerResult.imageData,
@@ -19,5 +21,6 @@ export async function runAgentGeneration({ prompt }) {
     fileName: providerResult.fileName,
     providerMode: providerResult.providerMode,
     generatedAt: providerResult.generatedAt,
+    generationTimeMs,
   };
 }

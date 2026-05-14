@@ -1,5 +1,6 @@
 import cors from "cors";
 import express from "express";
+import { HttpError } from "./httpError.js";
 import { generationRouter } from "./routes/generationRoutes.js";
 
 const app = express();
@@ -20,6 +21,7 @@ app.use((error, _request, response, next) => {
       ok: false,
       error: "Request body must be valid JSON.",
       code: "INVALID_JSON",
+      issues: [],
     });
   }
   return next(error);
@@ -33,15 +35,24 @@ app.use("/api/generate", generationRouter);
 
 app.use((error, _request, response, _next) => {
   console.error(error);
+  if (error instanceof HttpError) {
+    return response.status(error.status).json({
+      ok: false,
+      error: error.message,
+      code: error.code,
+      issues: [],
+    });
+  }
   const status = typeof error?.status === "number" && error.status >= 400 ? error.status : 500;
   const message =
-    status < 500 && typeof error?.message === "string"
-      ? error.message
-      : "An unexpected error occurred while handling the request.";
+    status >= 500
+      ? "An unexpected error occurred while handling the request."
+      : "The request could not be completed.";
   return response.status(status).json({
     ok: false,
     error: message,
     code: status >= 500 ? "INTERNAL_ERROR" : "REQUEST_FAILED",
+    issues: [],
   });
 });
 

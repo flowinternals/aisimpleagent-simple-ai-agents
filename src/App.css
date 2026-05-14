@@ -456,6 +456,7 @@
   font-size: 0.82rem;
   line-height: 1.45;
   color: var(--tdg-danger-text);
+  white-space: pre-line;
 }
 
 .tdg-image-wrap {

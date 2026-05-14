@@ -1,5 +1,11 @@
 import { useMemo, useState } from "react";
-import type { GenerationApiSuccess, GenerationRequest, GenerationResponse } from "./types/generation";
+import {
+  formatGenerationApiErrorMessage,
+  isGenerationApiErrorBody,
+  type GenerationApiSuccess,
+  type GenerationRequest,
+  type GenerationResponse,
+} from "./types/generation";
 import { GENERATION_PROMPT_MAX_LENGTH } from "../shared/generationLimits.js";
 import "./App.css";
 
@@ -73,11 +79,22 @@ export default function App() {
         body: JSON.stringify({ prompt: prompt.trim() } satisfies GenerationRequest),
       });
 
-      const payload = (await response.json()) as unknown;
+      let payload: unknown;
+      try {
+        payload = await response.json();
+      } catch {
+        throw new Error(`Generation failed (HTTP ${response.status}, response was not JSON).`);
+      }
 
       if (!response.ok) {
-        const errBody = payload && typeof payload === "object" ? (payload as { error?: string }) : {};
-        throw new Error(typeof errBody.error === "string" ? errBody.error : "Generation failed.");
+        if (isGenerationApiErrorBody(payload)) {
+          throw new Error(formatGenerationApiErrorMessage(payload));
+        }
+        const loose =
+          payload && typeof payload === "object" && typeof (payload as { error?: unknown }).error === "string"
+            ? (payload as { error: string }).error
+            : "";
+        throw new Error(loose || `Generation failed (HTTP ${response.status}).`);
       }
 
       if (

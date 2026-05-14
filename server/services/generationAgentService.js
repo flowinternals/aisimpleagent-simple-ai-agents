@@ -9,13 +9,9 @@ function buildProviderPrompt(prompt) {
   ].join("\n");
 }
 
-export async function runAgentGeneration({ prompt }) {
-  const startedAt = Date.now();
-  const providerPrompt = buildProviderPrompt(prompt);
-  const providerResult = await generateWithProvider({ prompt, providerPrompt });
-  const generationTimeMs = Date.now() - startedAt;
-
-  return {
+/** Builds the `data` object for a successful `POST /api/generate` response. */
+function buildGenerationApiData(providerResult, generationTimeMs) {
+  const data = {
     imageData: providerResult.imageData,
     mimeType: providerResult.mimeType,
     fileName: providerResult.fileName,
@@ -23,4 +19,17 @@ export async function runAgentGeneration({ prompt }) {
     generatedAt: providerResult.generatedAt,
     generationTimeMs,
   };
+  if (typeof providerResult.modelLabel === "string" && providerResult.modelLabel.trim()) {
+    data.modelLabel = providerResult.modelLabel.trim();
+  }
+  return data;
+}
+
+export async function runAgentGeneration({ prompt }) {
+  const startedAt = Date.now();
+  const providerPrompt = buildProviderPrompt(prompt);
+  const providerResult = await generateWithProvider({ prompt, providerPrompt });
+  const generationTimeMs = Date.now() - startedAt;
+
+  return buildGenerationApiData(providerResult, generationTimeMs);
 }

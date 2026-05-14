@@ -1,3 +1,8 @@
+/** Body for POST /api/generate — must match server validation (`generationRequest.js`). */
+export type GenerationRequest = {
+  prompt: string;
+};
+
 export type GenerationResponse = {
   imageData: string;
   mimeType: string;

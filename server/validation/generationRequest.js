@@ -1,12 +1,15 @@
 import { z } from "zod";
 
-const generationRequestSchema = z.object({
-  prompt: z
-    .string()
-    .trim()
-    .min(1, "Prompt is required.")
-    .max(2000, "Prompt must stay under 2000 characters."),
-});
+/** HTTP JSON body for POST /api/generate — only `prompt`; unknown keys are rejected (strict). */
+const generationRequestSchema = z
+  .object({
+    prompt: z
+      .string()
+      .trim()
+      .min(1, "Prompt is required.")
+      .max(2000, "Prompt must stay under 2000 characters."),
+  })
+  .strict();
 
 export function validateGenerationRequest(payload) {
   const parsed = generationRequestSchema.safeParse(payload);

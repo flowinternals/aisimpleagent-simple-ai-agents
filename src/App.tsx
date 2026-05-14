@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { GenerationResponse } from "./types/generation";
+import type { GenerationRequest, GenerationResponse } from "./types/generation";
 import "./App.css";
 
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -70,7 +70,7 @@ export default function App() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt: prompt.trim() } satisfies GenerationRequest),
       });
 
       const payload = (await response.json()) as GenerationResponse & { error?: string };

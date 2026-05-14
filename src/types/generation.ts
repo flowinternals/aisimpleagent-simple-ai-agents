@@ -10,8 +10,8 @@ export type GenerationResponse = {
   fileName: string;
   providerMode: "mock" | "live";
   generatedAt: string;
-  /** Server timing for the provider call; shown in the UI when present. */
-  generationTimeMs?: number;
+  /** Server timing for the provider call (always set by the agent service). */
+  generationTimeMs: number;
   /** Optional label (e.g. model) for live providers; omitted when unset. */
   modelLabel?: string;
 };

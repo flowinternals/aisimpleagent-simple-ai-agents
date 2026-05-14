@@ -1,5 +1,6 @@
 import express from "express";
 import { HttpError } from "../httpError.js";
+import { isProviderNotAvailableError } from "../providers/providerAdapter.js";
 import { runAgentGeneration } from "../services/generationAgentService.js";
 import { validateGenerationRequest } from "../validation/generationRequest.js";
 
@@ -43,10 +44,22 @@ generationRouter.post("/", requireJsonContentType, async (request, response) => 
     });
   }
 
+  const validatedBody = validation.data;
+
   try {
-    const data = await runAgentGeneration(validation.data);
+    const data = await runAgentGeneration(validatedBody);
     return response.status(200).json({ ok: true, data });
   } catch (error) {
+    if (isProviderNotAvailableError(error)) {
+      console.error(error);
+      return response.status(503).json({
+        ok: false,
+        error: "Image generation is not available for the configured provider yet.",
+        code: "PROVIDER_NOT_AVAILABLE",
+        issues: [],
+      });
+    }
+
     if (error instanceof HttpError) {
       if (error.status >= 500) {
         console.error(error);

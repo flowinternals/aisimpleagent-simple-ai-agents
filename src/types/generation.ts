@@ -1,4 +1,4 @@
-/** Body for POST /api/generate — must match server validation (`generationRequest.js`). */
+/** Body for POST /api/generate — must match server validation (`generationRequest.js`, limit from `shared/generationLimits.js`). */
 export type GenerationRequest = {
   prompt: string;
 };

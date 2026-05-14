@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import type { GenerationApiSuccess, GenerationRequest, GenerationResponse } from "./types/generation";
+import { GENERATION_PROMPT_MAX_LENGTH } from "../shared/generationLimits.js";
 import "./App.css";
 
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
-const PROMPT_MAX = 2000;
 
 const EXAMPLE_PROMPTS: Record<string, string> = {
   architecture:
@@ -175,12 +175,12 @@ export default function App() {
                     value={prompt}
                     onChange={(event) => setPrompt(event.target.value)}
                     placeholder={EXAMPLE_PROMPTS.architecture}
-                    maxLength={PROMPT_MAX}
+                    maxLength={GENERATION_PROMPT_MAX_LENGTH}
                     rows={12}
                     spellCheck
                   />
                   <span className="tdg-char-count" aria-live="polite">
-                    {prompt.length} / {PROMPT_MAX}
+                    {prompt.length} / {GENERATION_PROMPT_MAX_LENGTH}
                   </span>
                 </div>
               </div>

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { GenerationRequest, GenerationResponse } from "./types/generation";
+import type { GenerationApiSuccess, GenerationRequest, GenerationResponse } from "./types/generation";
 import "./App.css";
 
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -73,21 +73,34 @@ export default function App() {
         body: JSON.stringify({ prompt: prompt.trim() } satisfies GenerationRequest),
       });
 
-      const payload = (await response.json()) as GenerationResponse & { error?: string };
+      const payload = (await response.json()) as unknown;
+
       if (!response.ok) {
-        throw new Error(payload.error ?? "Generation failed.");
+        const errBody = payload && typeof payload === "object" ? (payload as { error?: string }) : {};
+        throw new Error(typeof errBody.error === "string" ? errBody.error : "Generation failed.");
       }
 
-      if (!payload.imageData || !payload.mimeType) {
+      if (
+        !payload ||
+        typeof payload !== "object" ||
+        !("ok" in payload) ||
+        (payload as { ok?: unknown }).ok !== true ||
+        !("data" in payload)
+      ) {
+        throw new Error("Invalid response: expected { ok: true, data }.");
+      }
+
+      const data = (payload as GenerationApiSuccess).data;
+      if (!data?.imageData || !data?.mimeType) {
         throw new Error("Invalid response: missing image payload.");
       }
 
-      setResult(payload);
+      setResult(data);
       setHistory((previous) => {
         const entry: HistoryEntry = {
-          id: `${payload.generatedAt}-${Math.random().toString(36).slice(2, 9)}`,
+          id: `${data.generatedAt}-${Math.random().toString(36).slice(2, 9)}`,
           prompt: prompt.trim(),
-          result: payload,
+          result: data,
         };
         return [entry, ...previous].slice(0, 12);
       });

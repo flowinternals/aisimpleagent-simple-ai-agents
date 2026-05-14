@@ -17,7 +17,20 @@ generationRouter.post("/", async (request, response) => {
 
   try {
     const result = await runAgentGeneration(validation.data);
-    return response.status(200).json({ ok: true, ...result });
+    return response.status(200).json({
+      ok: true,
+      data: {
+        imageData: result.imageData,
+        mimeType: result.mimeType,
+        fileName: result.fileName,
+        providerMode: result.providerMode,
+        generatedAt: result.generatedAt,
+        generationTimeMs: result.generationTimeMs,
+        ...(typeof result.modelLabel === "string" && result.modelLabel.trim()
+          ? { modelLabel: result.modelLabel.trim() }
+          : {}),
+      },
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Generation failed.";
     const status = typeof error?.status === "number" && error.status >= 400 ? error.status : 500;

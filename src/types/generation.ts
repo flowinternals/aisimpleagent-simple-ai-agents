@@ -3,14 +3,21 @@ export type GenerationRequest = {
   prompt: string;
 };
 
+/** Image payload returned in `POST /api/generate` success body (`data`). */
 export type GenerationResponse = {
   imageData: string;
   mimeType: string;
   fileName: string;
   providerMode: "mock" | "live";
   generatedAt: string;
-  /** When present, shown as “Generated in Xs” in the UI. */
+  /** Server timing for the provider call; shown in the UI when present. */
   generationTimeMs?: number;
-  /** When present, shown next to timing (for example a model name). */
+  /** Optional label (e.g. model) for live providers; omitted when unset. */
   modelLabel?: string;
+};
+
+/** Successful `POST /api/generate` JSON body — same envelope for mock and live. */
+export type GenerationApiSuccess = {
+  ok: true;
+  data: GenerationResponse;
 };

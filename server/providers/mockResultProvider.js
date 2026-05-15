@@ -33,11 +33,15 @@ function chunkText(value, maxLength) {
 
 /**
  * Mock implementation of diagram generation for local/dev.
- * @param {{ prompt: string, providerPrompt: string }} args
- * @returns {Promise<import("../contracts/generationAdapterResult.js").NormalizedGenerationResult>}
+ * Treats `providerPrompt` as an opaque instruction string (no parsing of agent-layer layout).
+ * Returns a base64 data URL in `imageData` (validated by `generationAdapterResult.js`)
+ * before the agent service sees it.
+ *
+ * @param {Pick<import("../contracts/generationAdapterResult.js").GenerationAdapterRequest, "providerPrompt"|"imageQuality">} args
+ * @returns {Promise<Record<string, unknown>>}
  */
-export async function generateMockResult({ prompt, providerPrompt }) {
-  const lines = chunkText(prompt, 44);
+export async function generateMockResult({ providerPrompt, imageQuality }) {
+  const lines = chunkText(providerPrompt, 44);
   const promptNote = chunkText(providerPrompt, 56)[0] || "Mock provider starter output";
 
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
@@ -82,5 +86,6 @@ export async function generateMockResult({ prompt, providerPrompt }) {
     fileName: "starter-agent-result.svg",
     providerMode: "mock",
     generatedAt: new Date().toISOString(),
+    qualityLabel: imageQuality,
   };
 }

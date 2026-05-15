@@ -1,36 +1,39 @@
+import { normalizeGenerationAdapterResult } from "../contracts/generationAdapterResult.js";
+import { ProviderAdapterError } from "../errors/providerAdapterError.js";
+import { generateCloudflareLiveImage } from "./live/cloudflareLiveProvider.js";
+import { generateGoogleLiveImage } from "./live/googleLiveProvider.js";
+import { generateOpenAiLiveImage } from "./live/openaiLiveProvider.js";
 import { generateMockResult } from "./mockResultProvider.js";
 
-export class ProviderAdapterError extends Error {
-  constructor(code, message) {
-    super(message);
-    this.name = "ProviderAdapterError";
-    this.code = code;
-  }
-}
-
 /**
- * HTTP-friendly check for provider-unavailable errors. Routes can use this instead of
- * importing `ProviderAdapterError` for `instanceof` checks.
- * @param {unknown} error
- * @returns {boolean}
- */
-export function isProviderNotAvailableError(error) {
-  return error instanceof ProviderAdapterError && error.code === "PROVIDER_NOT_AVAILABLE";
-}
-
-/**
- * @param {{ prompt: string, providerPrompt: string }} args
+ * Provider execution boundary: runs mock or the selected live vendor module and returns a
+ * normalised adapter result. Switching stays here; the agent service calls this module only.
+ *
+ * @param {import("../contracts/generationAdapterResult.js").GenerationAdapterRequest} args
  * @returns {Promise<import("../contracts/generationAdapterResult.js").NormalizedGenerationResult>}
  */
-export async function generateWithProvider({ prompt, providerPrompt }) {
-  const providerMode = process.env.AI_PROVIDER_MODE || "mock";
-
-  if (providerMode !== "mock") {
-    throw new ProviderAdapterError(
-      "PROVIDER_NOT_AVAILABLE",
-      "Configured provider path is not available.",
-    );
+export async function generateWithProvider({ providerPrompt, providerMode, providerId, imageQuality }) {
+  if (providerMode === "mock") {
+    const raw = await generateMockResult({ providerPrompt, imageQuality });
+    return normalizeGenerationAdapterResult(raw, "mock");
   }
 
-  return generateMockResult({ prompt, providerPrompt });
+  /** @type {Promise<Record<string, unknown>>} */
+  let livePromise;
+  switch (providerId) {
+    case "openai":
+      livePromise = generateOpenAiLiveImage({ providerPrompt, imageQuality });
+      break;
+    case "google":
+      livePromise = generateGoogleLiveImage({ providerPrompt });
+      break;
+    case "cloudflare":
+      livePromise = generateCloudflareLiveImage({ providerPrompt });
+      break;
+    default:
+      throw new ProviderAdapterError("PROVIDER_NOT_AVAILABLE", "Unsupported provider id.");
+  }
+
+  const raw = await livePromise;
+  return normalizeGenerationAdapterResult(raw, "live");
 }

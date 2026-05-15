@@ -1,18 +1,6 @@
 import { generateWithProvider } from "../providers/providerAdapter.js";
 
 /**
- * @param {unknown} value
- * @returns {value is { prompt: string }}
- */
-function isValidatedGenerationBody(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return false;
-  }
-  const prompt = /** @type {{ prompt?: unknown }} */ (value).prompt;
-  return typeof prompt === "string" && prompt.length > 0;
-}
-
-/**
  * Assembles the full provider-facing instruction string.
  * The validated `userPrompt` is only the customer brief; this function adds app
  * role, interpretation rules, and delimiters so models (or mocks) see one coherent task.
@@ -43,7 +31,7 @@ function buildProviderPrompt(userPrompt) {
  * Only fields the UI needs are included; unknown adapter keys are never forwarded.
  *
  * From the adapter: `imageData`, `mimeType`, `fileName`, `providerMode`, `generatedAt`,
- * and optionally `modelLabel` when a live backend supplies it.
+ * and optionally `modelLabel` / `qualityLabel` when a live backend supplies them.
  * From this service: `generationTimeMs` (wall-clock time for the adapter call).
  *
  * @param {import("../contracts/generationAdapterResult.js").NormalizedGenerationResult} providerResult
@@ -58,27 +46,31 @@ function buildGenerationApiData(providerResult, generationTimeMs) {
     generatedAt: providerResult.generatedAt,
     generationTimeMs,
   };
-  if (typeof providerResult.modelLabel === "string" && providerResult.modelLabel.trim()) {
-    data.modelLabel = providerResult.modelLabel.trim();
+  if (providerResult.modelLabel) {
+    data.modelLabel = providerResult.modelLabel;
+  }
+  if (providerResult.qualityLabel) {
+    data.qualityLabel = providerResult.qualityLabel;
   }
   return data;
 }
 
 /**
  * Agent entrypoint after request body validation: builds the provider prompt, calls
- * `generateWithProvider`, maps the result to the public API shape, and times the call.
- * @param {unknown} validatedRequest use `validation.data` from `validateGenerationRequest` only
+ * `generateWithProvider` with that instruction only, maps the result to the public API shape,
+ * and times the call.
+ * @param {import("../validation/generationRequest.js").ValidatedGenerationRequest} validatedRequest `validation.data` from `validateGenerationRequest`
  */
 export async function runAgentGeneration(validatedRequest) {
-  if (!isValidatedGenerationBody(validatedRequest)) {
-    throw new Error(
-      "runAgentGeneration expects validation.data from validateGenerationRequest (non-empty string prompt).",
-    );
-  }
-  const { prompt } = validatedRequest;
+  const { prompt, providerMode, providerId, imageQuality } = validatedRequest;
   const startedAt = Date.now();
   const providerPrompt = buildProviderPrompt(prompt);
-  const providerResult = await generateWithProvider({ prompt, providerPrompt });
+  const providerResult = await generateWithProvider({
+    providerPrompt,
+    providerMode,
+    providerId,
+    imageQuality,
+  });
   const generationTimeMs = Date.now() - startedAt;
 
   return buildGenerationApiData(providerResult, generationTimeMs);

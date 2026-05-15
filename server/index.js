@@ -1,6 +1,8 @@
+import "./config/loadEnvFiles.js";
 import cors from "cors";
 import express from "express";
 import { HttpError } from "./httpError.js";
+import { getGenerationProviderConfig } from "./config/providerRuntimeConfig.js";
 import { generationRouter } from "./routes/generationRoutes.js";
 
 const app = express();
@@ -28,7 +30,13 @@ app.use((error, _request, response, next) => {
 });
 
 app.get("/api/health", (_request, response) => {
-  response.json({ status: "ok", providerMode: process.env.AI_PROVIDER_MODE || "mock" });
+  const { liveOpenAi } = getGenerationProviderConfig();
+  response.json({
+    status: "ok",
+    liveOpenAi,
+    /** True when mock and API process are up; live OpenAI additionally requires `liveOpenAi.ready`. */
+    mockReady: true,
+  });
 });
 
 app.use("/api/generate", generationRouter);

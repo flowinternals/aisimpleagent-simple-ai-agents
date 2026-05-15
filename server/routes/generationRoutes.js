@@ -1,6 +1,5 @@
 import express from "express";
-import { HttpError } from "../httpError.js";
-import { isProviderNotAvailableError } from "../providers/providerAdapter.js";
+import { mapGenerationErrorToHttp } from "../http/mapGenerationErrorToHttp.js";
 import { runAgentGeneration } from "../services/generationAgentService.js";
 import { validateGenerationRequest } from "../validation/generationRequest.js";
 
@@ -29,7 +28,9 @@ function requireJsonContentType(request, response, next) {
 /**
  * POST /api/generate
  *
- * Request: JSON body `{ "prompt": string }` only (strict). Content-Type must be application/json.
+ * Request: JSON body `{ "prompt": string, "providerMode": "mock"|"live", "providerId"?: "openai"|"google"|"cloudflare" }` (strict).
+ * `providerId` is required when `providerMode` is `live`; optional in `mock` (defaults to `openai`).
+ * Content-Type must be application/json.
  * Success: 200 `{ ok: true, data: GenerationResponse }`.
  * Errors: 4xx/5xx `{ ok: false, error: string, code: string, issues: Issue[] }`.
  */
@@ -50,33 +51,14 @@ generationRouter.post("/", requireJsonContentType, async (request, response) => 
     const data = await runAgentGeneration(validatedBody);
     return response.status(200).json({ ok: true, data });
   } catch (error) {
-    if (isProviderNotAvailableError(error)) {
+    const mapped = mapGenerationErrorToHttp(error);
+    if (mapped.logError) {
       console.error(error);
-      return response.status(503).json({
-        ok: false,
-        error: "Image generation is not available for the configured provider yet.",
-        code: "PROVIDER_NOT_AVAILABLE",
-        issues: [],
-      });
     }
-
-    if (error instanceof HttpError) {
-      if (error.status >= 500) {
-        console.error(error);
-      }
-      return response.status(error.status).json({
-        ok: false,
-        error: error.message,
-        code: error.code,
-        issues: [],
-      });
-    }
-
-    console.error(error);
-    return response.status(500).json({
+    return response.status(mapped.status).json({
       ok: false,
-      error: "Unable to generate an image right now. Please try again in a moment.",
-      code: "GENERATION_FAILED",
+      error: mapped.message,
+      code: mapped.code,
       issues: [],
     });
   }

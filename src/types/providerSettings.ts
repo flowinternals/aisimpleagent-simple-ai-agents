@@ -9,10 +9,14 @@ export type GenerationProviderSettings = {
 
 export const PROVIDER_SETTINGS_STORAGE_KEY = "tdg-generation-provider-settings";
 
-/** Only OpenAI live image generation is implemented in this application build. */
-export const IMPLEMENTED_LIVE_PROVIDER_ID: ProviderId = "openai";
+/** Live vendors with a working server adapter in this build. */
+export const IMPLEMENTED_LIVE_PROVIDER_IDS: ProviderId[] = ["openai", "google"];
 
 export const DEFAULT_PROVIDER_SETTINGS: GenerationProviderSettings = {
   providerMode: "mock",
   providerId: "openai",
 };
+
+export function isImplementedLiveProviderId(providerId: string): providerId is ProviderId {
+  return IMPLEMENTED_LIVE_PROVIDER_IDS.includes(providerId as ProviderId);
+}

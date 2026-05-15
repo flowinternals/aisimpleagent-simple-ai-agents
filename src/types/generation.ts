@@ -1,4 +1,6 @@
 import type { ImageQuality } from "./imageQuality";
+import type { ImageSize } from "./imageSize";
+import type { ImageTheme } from "./imageTheme";
 import type { ProviderId, ProviderMode } from "./providerSettings";
 
 /** Body for POST /api/generate — must match server validation (`generationRequest.js`, limit from `shared/generationLimits.js`). */
@@ -9,6 +11,10 @@ export type GenerationRequest = {
   providerId?: ProviderId;
   /** GPT image quality for live OpenAI; mock echoes the label for UI testing. */
   imageQuality?: ImageQuality;
+  /** Light or dark diagram tone — honored in the provider prompt and output. */
+  imageTheme?: ImageTheme;
+  /** Target aspect ratio for the generated diagram. */
+  imageSize?: ImageSize;
 };
 
 /** Image payload returned in `POST /api/generate` success body (`data`). */
@@ -29,6 +35,10 @@ export type GenerationResponse = {
   modelLabel?: string;
   /** Optional quality label for live image generation. */
   qualityLabel?: "low" | "medium" | "high";
+  /** Diagram tone used for generation. */
+  themeLabel?: ImageTheme;
+  /** Aspect ratio used for generation. */
+  sizeLabel?: ImageSize;
 };
 
 /** Successful `POST /api/generate` JSON body — same envelope for mock and live. */
@@ -91,6 +101,12 @@ function isGenerationResponse(value: unknown): value is GenerationResponse {
     o.qualityLabel !== "medium" &&
     o.qualityLabel !== "high"
   ) {
+    return false;
+  }
+  if (o.themeLabel !== undefined && o.themeLabel !== "light" && o.themeLabel !== "dark") {
+    return false;
+  }
+  if (o.sizeLabel !== undefined && o.sizeLabel !== "16:9" && o.sizeLabel !== "4:3" && o.sizeLabel !== "1:1") {
     return false;
   }
   return true;

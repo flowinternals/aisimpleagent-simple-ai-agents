@@ -5,8 +5,14 @@ import { generateWithProvider } from "../providers/providerAdapter.js";
  * The validated `userPrompt` is only the customer brief; this function adds app
  * role, interpretation rules, and delimiters so models (or mocks) see one coherent task.
  * @param {string} userPrompt validated `prompt` from the API body
+ * @param {{ imageTheme: "light"|"dark", imageSize: "16:9"|"4:3"|"1:1" }} options
  */
-function buildProviderPrompt(userPrompt) {
+function buildProviderPrompt(userPrompt, { imageTheme, imageSize }) {
+  const themeRequirement =
+    imageTheme === "dark"
+      ? "- Diagram tone: dark-theme image — dark background with light text, lines, and fills."
+      : "- Diagram tone: light-theme image — light or white background with dark text, lines, and fills.";
+
   const appAndTask = [
     "ROLE",
     "Technical Diagram Generator: turn a customer brief into one technical diagram image (preview + download in a web app).",
@@ -19,6 +25,8 @@ function buildProviderPrompt(userPrompt) {
     "- Engineering-style clarity: main elements, relationships or flows, short readable labels.",
     "- Reflect named systems, tiers, products, or technologies when the user names them.",
     "- If the brief is thin or ambiguous, pick one sensible interpretation and keep the layout uncluttered.",
+    themeRequirement,
+    `- Aspect ratio: ${imageSize}. Compose the full canvas for this ratio.`,
   ].join("\n");
 
   const userSpecification = ["USER SPECIFICATION", "---", userPrompt, "---"].join("\n");
@@ -52,6 +60,12 @@ function buildGenerationApiData(providerResult, generationTimeMs) {
   if (providerResult.qualityLabel) {
     data.qualityLabel = providerResult.qualityLabel;
   }
+  if (providerResult.themeLabel) {
+    data.themeLabel = providerResult.themeLabel;
+  }
+  if (providerResult.sizeLabel) {
+    data.sizeLabel = providerResult.sizeLabel;
+  }
   return data;
 }
 
@@ -62,16 +76,25 @@ function buildGenerationApiData(providerResult, generationTimeMs) {
  * @param {import("../validation/generationRequest.js").ValidatedGenerationRequest} validatedRequest `validation.data` from `validateGenerationRequest`
  */
 export async function runAgentGeneration(validatedRequest) {
-  const { prompt, providerMode, providerId, imageQuality } = validatedRequest;
+  const { prompt, providerMode, providerId, imageQuality, imageTheme, imageSize } = validatedRequest;
   const startedAt = Date.now();
-  const providerPrompt = buildProviderPrompt(prompt);
+  const providerPrompt = buildProviderPrompt(prompt, { imageTheme, imageSize });
   const providerResult = await generateWithProvider({
     providerPrompt,
     providerMode,
     providerId,
     imageQuality,
+    imageTheme,
+    imageSize,
   });
   const generationTimeMs = Date.now() - startedAt;
 
-  return buildGenerationApiData(providerResult, generationTimeMs);
+  const data = buildGenerationApiData(providerResult, generationTimeMs);
+  if (!data.themeLabel) {
+    data.themeLabel = imageTheme;
+  }
+  if (!data.sizeLabel) {
+    data.sizeLabel = imageSize;
+  }
+  return data;
 }

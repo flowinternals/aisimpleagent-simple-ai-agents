@@ -70,9 +70,9 @@ export function getGenerationPreviewErrorPresentation(
   switch (error.code) {
     case "LIVE_PROVIDER_QUOTA_EXCEEDED":
       return {
-        title: "OpenAI billing limit reached",
+        title: "Live provider billing limit reached",
         message: error.message,
-        hint: "Live generation is paused until your OpenAI account has available credits or a higher spending limit.",
+        hint: "Live generation is paused until your provider account has available quota or billing enabled.",
         action: "switch-to-mock",
         actionLabel: "Switch to mock mode",
       };

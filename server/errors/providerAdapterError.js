@@ -4,13 +4,21 @@ import { HttpError } from "../httpError.js";
 
 export class ProviderAdapterError extends Error {
 
-  constructor(code, message) {
+  /**
+   * @param {string} code
+   * @param {string} message
+   * @param {Record<string, unknown> | undefined} [diagnostics] safe, non-secret fields for server logs
+   */
+  constructor(code, message, diagnostics) {
 
     super(message);
 
     this.name = "ProviderAdapterError";
 
     this.code = code;
+
+    /** @type {Record<string, unknown> | undefined} */
+    this.diagnostics = diagnostics;
 
   }
 
@@ -86,7 +94,7 @@ export function httpErrorFromProviderAdapter(error) {
 
       code,
 
-      "The selected live provider is not wired up yet. Choose OpenAI or use mock mode.",
+      "The selected live provider is not wired up yet. Choose OpenAI, Google, or use mock mode.",
 
     );
 
@@ -114,7 +122,35 @@ export function httpErrorFromProviderAdapter(error) {
 
       code,
 
-      "OpenAI billing or usage limit reached. Add credits in your OpenAI account, or switch to Mock mode in Settings to keep testing locally.",
+      "Live provider billing or usage limit reached. Check your provider account, or switch to Mock mode in Settings to keep testing locally.",
+
+    );
+
+  }
+
+  if (code === "LIVE_PROVIDER_RATE_LIMIT") {
+
+    return new HttpError(
+
+      429,
+
+      code,
+
+      "The image provider is rate limiting requests. Wait a moment and try again, or switch to Mock mode in Settings.",
+
+    );
+
+  }
+
+  if (code === "LIVE_PROVIDER_MISCONFIGURED") {
+
+    return new HttpError(
+
+      503,
+
+      code,
+
+      "Live image generation is misconfigured on the server (endpoint or model). Check GOOGLE_BASE_URL and GOOGLE_IMAGE_MODEL.",
 
     );
 

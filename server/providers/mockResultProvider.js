@@ -1,3 +1,6 @@
+import { normalizeImageSize, mockSvgDimensions } from "../../shared/imageSize.js";
+import { normalizeImageTheme } from "../../shared/imageTheme.js";
+
 function escapeXml(value) {
   return value
     .replaceAll("&", "&amp;")
@@ -32,52 +35,78 @@ function chunkText(value, maxLength) {
 }
 
 /**
+ * @param {"light"|"dark"} imageTheme
+ * @returns {{ canvas: string, header: string, headerText: string, headerSub: string, body: string, stroke: string, panelA: string, panelB: string, panelC: string }}
+ */
+function mockPalette(imageTheme) {
+  if (normalizeImageTheme(imageTheme) === "dark") {
+    return {
+      canvas: "#0f172a",
+      header: "#1e293b",
+      headerText: "#f8fafc",
+      headerSub: "#7dd3fc",
+      body: "#e2e8f0",
+      stroke: "#94a3b8",
+      panelA: "#1e3a5f",
+      panelB: "#134e4a",
+      panelC: "#312e81",
+    };
+  }
+  return {
+    canvas: "#f5f9ff",
+    header: "#0c1a32",
+    headerText: "#f7fbff",
+    headerSub: "#87d7ff",
+    body: "#173052",
+    stroke: "#0c1a32",
+    panelA: "#e5f0ff",
+    panelB: "#eafbf7",
+    panelC: "#f1eeff",
+  };
+}
+
+/**
  * Mock implementation of diagram generation for local/dev.
- * Treats `providerPrompt` as an opaque instruction string (no parsing of agent-layer layout).
- * Returns a base64 data URL in `imageData` (validated by `generationAdapterResult.js`)
- * before the agent service sees it.
  *
- * @param {Pick<import("../contracts/generationAdapterResult.js").GenerationAdapterRequest, "providerPrompt"|"imageQuality">} args
+ * @param {Pick<import("../contracts/generationAdapterResult.js").GenerationAdapterRequest, "providerPrompt"|"imageQuality"|"imageTheme"|"imageSize">} args
  * @returns {Promise<Record<string, unknown>>}
  */
-export async function generateMockResult({ providerPrompt, imageQuality }) {
+export async function generateMockResult({ providerPrompt, imageQuality, imageTheme, imageSize }) {
   const lines = chunkText(providerPrompt, 44);
   const promptNote = chunkText(providerPrompt, 56)[0] || "Mock provider starter output";
+  const theme = normalizeImageTheme(imageTheme);
+  const size = normalizeImageSize(imageSize);
+  const palette = mockPalette(theme);
+  const { width, height } = mockSvgDimensions(size);
 
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg width="1200" height="900" viewBox="0 0 1200 900" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="1200" height="900" rx="32" fill="#F5F9FF"/>
-  <rect x="64" y="64" width="1072" height="112" rx="24" fill="#0C1A32"/>
-  <text x="96" y="118" fill="#F7FBFF" font-family="Segoe UI, Arial, sans-serif" font-size="42" font-weight="700">Starter Agent App</text>
-  <text x="96" y="154" fill="#87D7FF" font-family="Segoe UI, Arial, sans-serif" font-size="20">Mock provider result proving the scaffolded request path</text>
+<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="${width}" height="${height}" rx="32" fill="${palette.canvas}"/>
+  <rect x="64" y="64" width="${width - 128}" height="112" rx="24" fill="${palette.header}"/>
+  <text x="96" y="118" fill="${palette.headerText}" font-family="Segoe UI, Arial, sans-serif" font-size="42" font-weight="700">Starter Agent App</text>
+  <text x="96" y="154" fill="${palette.headerSub}" font-family="Segoe UI, Arial, sans-serif" font-size="20">Mock ${theme} diagram · ${size}</text>
 
-  <rect x="88" y="228" width="272" height="480" rx="28" fill="#E5F0FF" stroke="#A6B9E0" stroke-width="2"/>
-  <rect x="464" y="228" width="272" height="480" rx="28" fill="#EAFBF7" stroke="#9FD8CA" stroke-width="2"/>
-  <rect x="840" y="228" width="272" height="480" rx="28" fill="#F1EEFF" stroke="#C0B3F1" stroke-width="2"/>
+  <rect x="88" y="228" width="272" height="480" rx="28" fill="${palette.panelA}" stroke="${palette.stroke}" stroke-width="2"/>
+  <rect x="464" y="228" width="272" height="480" rx="28" fill="${palette.panelB}" stroke="${palette.stroke}" stroke-width="2"/>
+  <rect x="840" y="228" width="272" height="480" rx="28" fill="${palette.panelC}" stroke="${palette.stroke}" stroke-width="2"/>
 
-  <text x="128" y="288" fill="#0C1A32" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">React UI</text>
-  <text x="504" y="288" fill="#0C1A32" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">Agent Service</text>
-  <text x="874" y="288" fill="#0C1A32" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">Provider Adapter</text>
+  <text x="128" y="288" fill="${palette.body}" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">React UI</text>
+  <text x="504" y="288" fill="${palette.body}" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">Agent Service</text>
+  <text x="874" y="288" fill="${palette.body}" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">Provider Adapter</text>
 
-  <text x="128" y="340" fill="#173052" font-family="Segoe UI, Arial, sans-serif" font-size="20">Prompt collected in the page</text>
-  <text x="504" y="340" fill="#173052" font-family="Segoe UI, Arial, sans-serif" font-size="20">Prompt shaped for provider use</text>
-  <text x="874" y="340" fill="#173052" font-family="Segoe UI, Arial, sans-serif" font-size="20">Mock provider returns starter output</text>
+  <path d="M360 468H464" stroke="${palette.stroke}" stroke-width="8" stroke-linecap="round"/>
+  <path d="M736 468H840" stroke="${palette.stroke}" stroke-width="8" stroke-linecap="round"/>
 
-  <path d="M360 468H464" stroke="#0C1A32" stroke-width="8" stroke-linecap="round"/>
-  <path d="M736 468H840" stroke="#0C1A32" stroke-width="8" stroke-linecap="round"/>
-  <path d="M432 448L464 468L432 488" stroke="#0C1A32" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M808 448L840 468L808 488" stroke="#0C1A32" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-
-  <text x="96" y="776" fill="#0C1A32" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700">User prompt</text>
-  <rect x="88" y="792" width="1024" height="72" rx="18" fill="#FFFFFF" stroke="#D1DDF4" stroke-width="2"/>
+  <text x="96" y="776" fill="${palette.body}" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700">User prompt</text>
+  <rect x="88" y="792" width="${width - 176}" height="72" rx="18" fill="${theme === "dark" ? "#1e293b" : "#ffffff"}" stroke="${palette.stroke}" stroke-width="2"/>
   ${lines
     .map(
       (line, index) =>
-        `<text x="116" y="${828 + index * 26}" fill="#1E2F4C" font-family="Segoe UI, Arial, sans-serif" font-size="22">${escapeXml(line)}</text>`,
+        `<text x="116" y="${828 + index * 26}" fill="${palette.body}" font-family="Segoe UI, Arial, sans-serif" font-size="22">${escapeXml(line)}</text>`,
     )
     .join("\n  ")}
 
-  <text x="504" y="620" fill="#173052" font-family="Segoe UI, Arial, sans-serif" font-size="18">${escapeXml(promptNote)}</text>
+  <text x="504" y="620" fill="${palette.body}" font-family="Segoe UI, Arial, sans-serif" font-size="18">${escapeXml(promptNote)}</text>
 </svg>`;
 
   return {
@@ -87,5 +116,7 @@ export async function generateMockResult({ providerPrompt, imageQuality }) {
     providerMode: "mock",
     generatedAt: new Date().toISOString(),
     qualityLabel: imageQuality,
+    themeLabel: theme,
+    sizeLabel: size,
   };
 }

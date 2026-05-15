@@ -1,20 +1,29 @@
 import {
   DEFAULT_IMAGE_QUALITY,
-  IMAGE_QUALITY_COST_HINTS,
   IMAGE_QUALITY_VALUES,
   normalizeImageQuality,
 } from "../../shared/imageQuality.js";
+import { buildImageQualityOptions, getImageQualityCostHints } from "../../shared/imageQualityPricing.js";
+import type { ProviderId, ProviderMode } from "./providerSettings";
 
 export type ImageQuality = (typeof IMAGE_QUALITY_VALUES)[number];
 
-export { DEFAULT_IMAGE_QUALITY, IMAGE_QUALITY_COST_HINTS, IMAGE_QUALITY_VALUES, normalizeImageQuality };
+export { DEFAULT_IMAGE_QUALITY, IMAGE_QUALITY_VALUES, normalizeImageQuality, buildImageQualityOptions, getImageQualityCostHints };
 
-export const IMAGE_QUALITY_OPTIONS: ReadonlyArray<{
+export type ImageQualityOption = {
   value: ImageQuality;
   label: string;
   costHint: string;
-}> = IMAGE_QUALITY_VALUES.map((value) => ({
-  value,
-  label: value.charAt(0).toUpperCase() + value.slice(1),
-  costHint: IMAGE_QUALITY_COST_HINTS[value],
-}));
+};
+
+export function imageQualityOptionsForProvider(settings: {
+  providerMode: ProviderMode;
+  providerId: ProviderId;
+  liveImageModel?: string;
+}): ReadonlyArray<ImageQualityOption> {
+  return buildImageQualityOptions({
+    providerMode: settings.providerMode,
+    providerId: settings.providerId,
+    liveImageModel: settings.liveImageModel,
+  });
+}

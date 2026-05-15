@@ -84,6 +84,12 @@ export function formatGenerationResultMetadata(result: GenerationResponse): stri
   if (result.qualityLabel) {
     parts.push(`Quality: ${result.qualityLabel}`);
   }
+  if (result.themeLabel) {
+    parts.push(`Tone: ${result.themeLabel}`);
+  }
+  if (result.sizeLabel) {
+    parts.push(`Size: ${result.sizeLabel}`);
+  }
   parts.push(`Mode: ${result.providerMode}`);
   parts.push(`File: ${generationDownloadFileName(result)}`);
   return parts.join(" | ");

@@ -1,3 +1,4 @@
+import { getGoogleRuntimeSnapshot } from "../../shared/googleProviderDiagnostics.js";
 import { normalizeGenerationAdapterResult } from "../contracts/generationAdapterResult.js";
 import { ProviderAdapterError } from "../errors/providerAdapterError.js";
 import { generateCloudflareLiveImage } from "./live/cloudflareLiveProvider.js";
@@ -12,20 +13,35 @@ import { generateMockResult } from "./mockResultProvider.js";
  * @param {import("../contracts/generationAdapterResult.js").GenerationAdapterRequest} args
  * @returns {Promise<import("../contracts/generationAdapterResult.js").NormalizedGenerationResult>}
  */
-export async function generateWithProvider({ providerPrompt, providerMode, providerId, imageQuality }) {
+export async function generateWithProvider({
+  providerPrompt,
+  providerMode,
+  providerId,
+  imageQuality,
+  imageTheme,
+  imageSize,
+}) {
   if (providerMode === "mock") {
-    const raw = await generateMockResult({ providerPrompt, imageQuality });
+    const raw = await generateMockResult({ providerPrompt, imageQuality, imageTheme, imageSize });
     return normalizeGenerationAdapterResult(raw, "mock");
   }
+
+  console.info("Provider adapter live dispatch", {
+    providerMode: "live",
+    providerId,
+    imageQuality,
+    imageSize,
+    ...(providerId === "google" ? getGoogleRuntimeSnapshot() : {}),
+  });
 
   /** @type {Promise<Record<string, unknown>>} */
   let livePromise;
   switch (providerId) {
     case "openai":
-      livePromise = generateOpenAiLiveImage({ providerPrompt, imageQuality });
+      livePromise = generateOpenAiLiveImage({ providerPrompt, imageQuality, imageSize });
       break;
     case "google":
-      livePromise = generateGoogleLiveImage({ providerPrompt });
+      livePromise = generateGoogleLiveImage({ providerPrompt, imageQuality, imageSize });
       break;
     case "cloudflare":
       livePromise = generateCloudflareLiveImage({ providerPrompt });

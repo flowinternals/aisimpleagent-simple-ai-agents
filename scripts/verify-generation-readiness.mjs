@@ -38,16 +38,37 @@ function pass(message) {
 console.log(`API base: ${apiBase}`);
 
 const health = await fetchJson("/api/health");
-if (!health.response.ok || !health.body?.liveOpenAi) {
+if (!health.response.ok || !health.body?.liveOpenAi || !health.body?.liveGoogle) {
   fail(`/api/health returned ${health.response.status}`);
 } else {
-  const { liveOpenAi, mockReady } = health.body;
+  const { liveOpenAi, liveGoogle, mockReady } = health.body;
   pass(`health status=${health.body.status} mockReady=${mockReady}`);
   console.log(
     `     liveOpenAi configured=${liveOpenAi.configured} ready=${liveOpenAi.ready} model=${liveOpenAi.imageModel}`,
   );
   if (liveOpenAi.reason) {
     console.log(`     liveOpenAi reason: ${liveOpenAi.reason}`);
+  }
+  console.log(
+    `     liveGoogle configured=${liveGoogle.configured} ready=${liveGoogle.ready} model=${liveGoogle.imageModel}`,
+  );
+  if (liveGoogle.baseUrlHost && liveGoogle.requestPath) {
+    console.log(
+      `     liveGoogle endpoint=${liveGoogle.baseUrlHost}${liveGoogle.requestPath} auth=${liveGoogle.authMethod ?? "n/a"}`,
+    );
+  }
+  if (liveGoogle.projectNumber || liveGoogle.projectName) {
+    console.log(
+      `     liveGoogle project number=${liveGoogle.projectNumber ?? "n/a"} name=${liveGoogle.projectName ?? "n/a"}`,
+    );
+  }
+  if (liveGoogle.readinessLevel) {
+    console.log(
+      `     liveGoogle readinessLevel=${liveGoogle.readinessLevel} likelyReadyForLiveTest=${liveGoogle.likelyReadyForLiveTest ?? liveGoogle.ready}`,
+    );
+  }
+  if (liveGoogle.reason) {
+    console.log(`     liveGoogle reason: ${liveGoogle.reason}`);
   }
 }
 

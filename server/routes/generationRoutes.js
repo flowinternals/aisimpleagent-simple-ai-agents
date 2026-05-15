@@ -1,4 +1,5 @@
 import express from "express";
+import { ProviderAdapterError } from "../errors/providerAdapterError.js";
 import { mapGenerationErrorToHttp } from "../http/mapGenerationErrorToHttp.js";
 import { runAgentGeneration } from "../services/generationAgentService.js";
 import { validateGenerationRequest } from "../validation/generationRequest.js";
@@ -52,7 +53,15 @@ generationRouter.post("/", requireJsonContentType, async (request, response) => 
     return response.status(200).json({ ok: true, data });
   } catch (error) {
     const mapped = mapGenerationErrorToHttp(error);
-    if (mapped.logError) {
+    if (error instanceof ProviderAdapterError && error.diagnostics) {
+      console.error("Generation provider adapter failure", {
+        providerMode: validatedBody.providerMode,
+        providerId: validatedBody.providerId,
+        adapterCode: error.code,
+        adapterMessage: error.message,
+        diagnostics: error.diagnostics,
+      });
+    } else if (mapped.logError) {
       console.error(error);
     }
     return response.status(mapped.status).json({

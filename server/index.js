@@ -2,7 +2,10 @@ import "./config/loadEnvFiles.js";
 import cors from "cors";
 import express from "express";
 import { HttpError } from "./httpError.js";
-import { getGenerationProviderConfig } from "./config/providerRuntimeConfig.js";
+import {
+  getGenerationProviderConfig,
+  getGoogleRuntimeLogSummary,
+} from "./config/providerRuntimeConfig.js";
 import { generationRouter } from "./routes/generationRoutes.js";
 
 const app = express();
@@ -30,11 +33,12 @@ app.use((error, _request, response, next) => {
 });
 
 app.get("/api/health", (_request, response) => {
-  const { liveOpenAi } = getGenerationProviderConfig();
+  const { liveOpenAi, liveGoogle } = getGenerationProviderConfig();
   response.json({
     status: "ok",
     liveOpenAi,
-    /** True when mock and API process are up; live OpenAI additionally requires `liveOpenAi.ready`. */
+    liveGoogle,
+    /** True when mock and API process are up; live vendors additionally require their `ready` flags. */
     mockReady: true,
   });
 });
@@ -65,7 +69,32 @@ app.use((error, _request, response, _next) => {
 });
 
 const server = app.listen(port, () => {
+  const { liveOpenAi, liveGoogle } = getGenerationProviderConfig();
+  const googleRuntime = getGoogleRuntimeLogSummary();
   console.log(`Simple AI Agents API listening on http://localhost:${port}`);
+  console.info("Live provider readiness at startup", {
+    liveOpenAi: {
+      configured: liveOpenAi.configured,
+      ready: liveOpenAi.ready,
+      imageModel: liveOpenAi.imageModel,
+      reason: liveOpenAi.reason ?? undefined,
+    },
+    liveGoogle: {
+      configured: liveGoogle.configured,
+      credentialsPresent: liveGoogle.credentialsPresent,
+      settingsValid: liveGoogle.settingsValid,
+      likelyReadyForLiveTest: liveGoogle.likelyReadyForLiveTest,
+      readinessLevel: liveGoogle.readinessLevel,
+      imageModel: liveGoogle.imageModel,
+      baseUrlHost: liveGoogle.baseUrlHost,
+      requestPath: liveGoogle.requestPath,
+      authMethod: liveGoogle.authMethod,
+      projectName: liveGoogle.projectName ?? undefined,
+      projectNumber: liveGoogle.projectNumber ?? undefined,
+      reason: liveGoogle.reason ?? undefined,
+    },
+    googleRuntime,
+  });
 });
 
 server.on("error", (error) => {

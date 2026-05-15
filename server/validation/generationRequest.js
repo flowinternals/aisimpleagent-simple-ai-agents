@@ -1,6 +1,8 @@
 import { z, ZodIssueCode } from "zod";
 import { GENERATION_PROMPT_MAX_LENGTH } from "../../shared/generationLimits.js";
 import { DEFAULT_IMAGE_QUALITY, normalizeImageQuality } from "../../shared/imageQuality.js";
+import { DEFAULT_IMAGE_SIZE, normalizeImageSize } from "../../shared/imageSize.js";
+import { DEFAULT_IMAGE_THEME, normalizeImageTheme } from "../../shared/imageTheme.js";
 
 export { GENERATION_PROMPT_MAX_LENGTH };
 
@@ -19,15 +21,23 @@ const providerIdSchema = z.enum(["openai", "google", "cloudflare"], {
 /** Default `providerId` when `providerMode` is `mock` and the client omits it. */
 export const MOCK_DEFAULT_PROVIDER_ID = "openai";
 
-/** Live vendors with a working adapter in this build (align with `IMPLEMENTED_LIVE_PROVIDER_ID` in the UI). */
-export const IMPLEMENTED_LIVE_PROVIDER_IDS = ["openai"];
+/** Live vendors with a working adapter in this build (align with `IMPLEMENTED_LIVE_PROVIDER_IDS` in the UI). */
+export const IMPLEMENTED_LIVE_PROVIDER_IDS = ["openai", "google"];
 
 const imageQualitySchema = z.enum(["low", "medium", "high"], {
   invalid_type_error: 'imageQuality must be "low", "medium", or "high".',
 });
 
+const imageThemeSchema = z.enum(["light", "dark"], {
+  invalid_type_error: 'imageTheme must be "light" or "dark".',
+});
+
+const imageSizeSchema = z.enum(["16:9", "4:3", "1:1"], {
+  invalid_type_error: 'imageSize must be "16:9", "4:3", or "1:1".',
+});
+
 /**
- * HTTP JSON body for POST /api/generate — `prompt`, `providerMode`, and optionally `providerId` / `imageQuality` (strict).
+ * HTTP JSON body for POST /api/generate — `prompt`, `providerMode`, and optional generation options (strict).
  * When `providerMode` is `live`, `providerId` is required and must be in {@link IMPLEMENTED_LIVE_PROVIDER_IDS}.
  * In `mock` mode `providerId` may be omitted (defaults to {@link MOCK_DEFAULT_PROVIDER_ID}) and is not used for generation.
  */
@@ -65,9 +75,11 @@ const generationRequestSchema = z
     providerMode: providerModeSchema,
     providerId: providerIdSchema.optional(),
     imageQuality: imageQualitySchema.optional(),
+    imageTheme: imageThemeSchema.optional(),
+    imageSize: imageSizeSchema.optional(),
   })
   .strict(
-    'Only "prompt", "providerMode", "providerId", and "imageQuality" are allowed in the request body. Remove any other properties.',
+    'Only "prompt", "providerMode", "providerId", "imageQuality", "imageTheme", and "imageSize" are allowed in the request body. Remove any other properties.',
   )
   .superRefine((data, ctx) => {
     if (data.providerMode !== "live") {
@@ -94,6 +106,8 @@ const generationRequestSchema = z
     providerMode: data.providerMode,
     providerId: data.providerId ?? MOCK_DEFAULT_PROVIDER_ID,
     imageQuality: normalizeImageQuality(data.imageQuality ?? DEFAULT_IMAGE_QUALITY),
+    imageTheme: normalizeImageTheme(data.imageTheme ?? DEFAULT_IMAGE_THEME),
+    imageSize: normalizeImageSize(data.imageSize ?? DEFAULT_IMAGE_SIZE),
   }));
 
 /**
@@ -115,7 +129,7 @@ function primaryValidationMessage(issues) {
   }
   const unrecognized = issues.find((issue) => issue.code === "unrecognized_keys");
   if (unrecognized) {
-    return 'Only "prompt", "providerMode", "providerId", and "imageQuality" are allowed in the request body. Remove unsupported properties.';
+    return 'Only "prompt", "providerMode", "providerId", "imageQuality", "imageTheme", and "imageSize" are allowed in the request body. Remove unsupported properties.';
   }
   return issues[0].message;
 }

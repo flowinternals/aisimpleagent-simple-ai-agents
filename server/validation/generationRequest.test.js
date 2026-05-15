@@ -26,9 +26,19 @@ describe("validateGenerationRequest", () => {
     const result = validateGenerationRequest({
       prompt: "Create a network diagram",
       providerMode: "live",
-      providerId: "google",
+      providerId: "cloudflare",
     });
     assert.equal(result.success, false);
+  });
+
+  it("accepts live google", () => {
+    const result = validateGenerationRequest({
+      prompt: "Create a network diagram",
+      providerMode: "live",
+      providerId: "google",
+    });
+    assert.equal(result.success, true);
+    assert.equal(result.data.providerId, "google");
   });
 
   it("accepts live openai", () => {
@@ -66,5 +76,17 @@ describe("validateGenerationRequest", () => {
       imageQuality: "ultra",
     });
     assert.equal(result.success, false);
+  });
+
+  it("accepts imageTheme and imageSize with defaults", () => {
+    const result = validateGenerationRequest({
+      prompt: "Create a network diagram",
+      providerMode: "mock",
+      imageTheme: "dark",
+      imageSize: "1:1",
+    });
+    assert.equal(result.success, true);
+    assert.equal(result.data.imageTheme, "dark");
+    assert.equal(result.data.imageSize, "1:1");
   });
 });

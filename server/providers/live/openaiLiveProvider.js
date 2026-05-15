@@ -1,5 +1,6 @@
 import { ProviderAdapterError } from "../../errors/providerAdapterError.js";
 import { DEFAULT_IMAGE_QUALITY, normalizeImageQuality } from "../../../shared/imageQuality.js";
+import { normalizeImageSize, openAiImageDimensions } from "../../../shared/imageSize.js";
 
 /** Default when env is unset (aligned with pack onboarding: gpt-image-1.5). */
 const DEFAULT_OPENAI_IMAGE_MODEL = "gpt-image-1.5";
@@ -90,10 +91,10 @@ function isOpenAiBillingOrQuotaError(detail) {
  * vendor `prompt` field and returns `imageData` as a base64 data URL (validated by
  * `normalizeGenerationAdapterResult` in the adapter).
  *
- * @param {Pick<import("../../contracts/generationAdapterResult.js").GenerationAdapterRequest, "providerPrompt"|"imageQuality">} args
+ * @param {Pick<import("../../contracts/generationAdapterResult.js").GenerationAdapterRequest, "providerPrompt"|"imageQuality"|"imageSize">} args
  * @returns {Promise<Record<string, unknown>>}
  */
-export async function generateOpenAiLiveImage({ providerPrompt, imageQuality }) {
+export async function generateOpenAiLiveImage({ providerPrompt, imageQuality, imageSize }) {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) {
     throw new ProviderAdapterError(
@@ -108,6 +109,7 @@ export async function generateOpenAiLiveImage({ providerPrompt, imageQuality }) 
   const gptImageQuality = normalizeImageQuality(
     imageQuality ?? process.env.OPENAI_IMAGE_QUALITY ?? DEFAULT_IMAGE_QUALITY,
   );
+  const resolvedImageSize = normalizeImageSize(imageSize);
   const url = `${baseUrl}/images/generations`;
 
   const headers = {
@@ -128,7 +130,7 @@ export async function generateOpenAiLiveImage({ providerPrompt, imageQuality }) 
     model,
     prompt: openAiImagePrompt(providerPrompt, model),
     n: 1,
-    size: "1024x1024",
+    size: openAiImageDimensions(resolvedImageSize),
   };
 
   // GPT image models always return base64 and can use low/medium/high quality controls.
@@ -211,5 +213,6 @@ export async function generateOpenAiLiveImage({ providerPrompt, imageQuality }) 
     generatedAt: new Date().toISOString(),
     modelLabel: model,
     qualityLabel: isGptImageModel(model) ? gptImageQuality : undefined,
+    sizeLabel: resolvedImageSize,
   };
 }

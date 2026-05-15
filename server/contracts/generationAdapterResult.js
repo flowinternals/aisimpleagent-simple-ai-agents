@@ -14,6 +14,8 @@ import { ProviderAdapterError } from "../errors/providerAdapterError.js";
  * @property {string} generatedAt ISO 8601 timestamp from the provider layer.
  * @property {string} [modelLabel] Optional display label when a live backend supplies it.
  * @property {'low'|'medium'|'high'} [qualityLabel] Optional display label for the image quality used by a live backend.
+ * @property {'light'|'dark'} [themeLabel] Optional diagram tone label echoed from the request.
+ * @property {'16:9'|'4:3'|'1:1'} [sizeLabel] Optional aspect ratio label echoed from the request.
  */
 
 /**
@@ -26,6 +28,8 @@ import { ProviderAdapterError } from "../errors/providerAdapterError.js";
  * @property {'mock'|'live'} providerMode
  * @property {'openai'|'google'|'cloudflare'} providerId
  * @property {'low'|'medium'|'high'} [imageQuality] GPT image quality from the validated API request.
+ * @property {'light'|'dark'} [imageTheme] Diagram tone from the validated API request.
+ * @property {'16:9'|'4:3'|'1:1'} [imageSize] Aspect ratio from the validated API request.
  */
 
 /** @param {string} detail internal detail for logs; not forwarded to clients */
@@ -184,6 +188,30 @@ export function normalizeGenerationAdapterResult(raw, expectedProviderMode) {
       out.qualityLabel = trimmed;
     } else if (trimmed) {
       throw adapterResultContractError('Adapter result field "qualityLabel" must be "low", "medium", or "high" when present.');
+    }
+  }
+
+  if (o.themeLabel !== undefined) {
+    if (typeof o.themeLabel !== "string") {
+      throw adapterResultContractError('Adapter result field "themeLabel" must be a string when present.');
+    }
+    const trimmed = o.themeLabel.trim().toLowerCase();
+    if (trimmed === "light" || trimmed === "dark") {
+      out.themeLabel = trimmed;
+    } else if (trimmed) {
+      throw adapterResultContractError('Adapter result field "themeLabel" must be "light" or "dark" when present.');
+    }
+  }
+
+  if (o.sizeLabel !== undefined) {
+    if (typeof o.sizeLabel !== "string") {
+      throw adapterResultContractError('Adapter result field "sizeLabel" must be a string when present.');
+    }
+    const trimmed = o.sizeLabel.trim();
+    if (trimmed === "16:9" || trimmed === "4:3" || trimmed === "1:1") {
+      out.sizeLabel = trimmed;
+    } else if (trimmed) {
+      throw adapterResultContractError('Adapter result field "sizeLabel" must be "16:9", "4:3", or "1:1" when present.');
     }
   }
 

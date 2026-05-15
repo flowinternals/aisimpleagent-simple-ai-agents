@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { PreviewImageFullscreen } from "./components/PreviewImageFullscreen";
+import tdgLogo from "./assets/tdg_logo.png";
 import { parseGenerationApiSuccess, type GenerationResponse } from "./types/generation";
 import {
   getGenerationPreviewErrorPresentation,
@@ -14,17 +16,26 @@ import {
   hasValidGenerationImageResult,
 } from "./lib/generationResultUi";
 import { formatHistoryRelativeTime } from "./lib/historyTime";
-import { parseApiHealthResponse, type LiveOpenAiHealth } from "./types/liveProviderHealth";
+import { historyThumbAspectRatio, previewCanvasSizeClass } from "./lib/previewAspectRatio";
+import {
+  liveHealthForProviderId,
+  parseApiHealthResponse,
+  type ApiHealthResponse,
+  type LiveProviderHealth,
+} from "./types/liveProviderHealth";
 import {
   DEFAULT_IMAGE_QUALITY,
-  IMAGE_QUALITY_OPTIONS,
+  imageQualityOptionsForProvider,
   type ImageQuality,
 } from "./types/imageQuality";
+import { DEFAULT_IMAGE_SIZE, IMAGE_SIZE_OPTIONS, type ImageSize } from "./types/imageSize";
+import { DEFAULT_IMAGE_THEME, type ImageTheme } from "./types/imageTheme";
 import {
   DEFAULT_PROVIDER_SETTINGS,
-  IMPLEMENTED_LIVE_PROVIDER_ID,
+  isImplementedLiveProviderId,
   PROVIDER_SETTINGS_STORAGE_KEY,
   type GenerationProviderSettings,
+  type ProviderId,
 } from "./types/providerSettings";
 import { buildGenerationRequestBody } from "../shared/buildGenerationRequestBody.js";
 import { GENERATION_PROMPT_MAX_LENGTH } from "../shared/generationLimits.js";
@@ -49,10 +60,10 @@ type HistoryEntry = {
   id: string;
   prompt: string;
   imageQuality: ImageQuality;
+  imageTheme: ImageTheme;
+  imageSize: ImageSize;
   result: GenerationResponse;
 };
-
-type PreviewFrameTheme = "light" | "dark";
 
 function readStoredProviderSettings(): GenerationProviderSettings {
   if (typeof window === "undefined") {
@@ -76,8 +87,7 @@ function readStoredProviderSettings(): GenerationProviderSettings {
     if (providerId !== "openai" && providerId !== "google" && providerId !== "cloudflare") {
       return DEFAULT_PROVIDER_SETTINGS;
     }
-    const normalizedId =
-      providerId === "google" || providerId === "cloudflare" ? IMPLEMENTED_LIVE_PROVIDER_ID : providerId;
+    const normalizedId: ProviderId = isImplementedLiveProviderId(providerId) ? providerId : "openai";
     const normalized: GenerationProviderSettings = { providerMode, providerId: normalizedId };
     if (normalizedId !== providerId) {
       try {
@@ -125,16 +135,17 @@ function previewStatusLabel(phase: ReturnType<typeof getPreviewPhase>): string {
 export default function App() {
   const [prompt, setPrompt] = useState(EXAMPLE_PROMPTS.architecture);
   const [imageQuality, setImageQuality] = useState<ImageQuality>(DEFAULT_IMAGE_QUALITY);
+  const [imageTheme, setImageTheme] = useState<ImageTheme>(DEFAULT_IMAGE_THEME);
+  const [imageSize, setImageSize] = useState<ImageSize>(DEFAULT_IMAGE_SIZE);
   const [result, setResult] = useState<GenerationResponse | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [previewError, setPreviewError] = useState<GenerationPreviewError | null>(null);
-  const [previewFrameTheme, setPreviewFrameTheme] = useState<PreviewFrameTheme>("light");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [previewFullscreenOpen, setPreviewFullscreenOpen] = useState(false);
   const [providerSettings, setProviderSettings] = useState<GenerationProviderSettings>(() => readStoredProviderSettings());
-  const [liveOpenAiHealth, setLiveOpenAiHealth] = useState<LiveOpenAiHealth | null>(null);
+  const [apiHealth, setApiHealth] = useState<ApiHealthResponse | null>(null);
   const [liveHealthError, setLiveHealthError] = useState("");
-
   const hasDisplayableResult = hasValidGenerationImageResult(result);
 
   const previewErrorPresentation = previewError
@@ -157,9 +168,42 @@ export default function App() {
 
   const downloadFileName = result && showPreviewImage ? generationDownloadFileName(result) : "";
 
+  const closePreviewFullscreen = useCallback(() => {
+    setPreviewFullscreenOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (!showPreviewImage || !imageSrc) {
+      setPreviewFullscreenOpen(false);
+    }
+  }, [showPreviewImage, imageSrc]);
+
+  function handlePreviewImageDoubleClick() {
+    if (showPreviewImage && imageSrc) {
+      setPreviewFullscreenOpen(true);
+    }
+  }
+
+  const activePreviewSize = result?.sizeLabel ?? imageSize;
+
+  const selectedLiveHealth: LiveProviderHealth | null =
+    providerSettings.providerMode === "live" && apiHealth
+      ? liveHealthForProviderId(apiHealth, providerSettings.providerId)
+      : null;
+
+  const imageQualityOptions = useMemo(
+    () =>
+      imageQualityOptionsForProvider({
+        providerMode: providerSettings.providerMode,
+        providerId: providerSettings.providerId,
+        liveImageModel: selectedLiveHealth?.imageModel,
+      }),
+    [providerSettings.providerMode, providerSettings.providerId, selectedLiveHealth?.imageModel],
+  );
+
   useEffect(() => {
     if (providerSettings.providerMode !== "live") {
-      setLiveOpenAiHealth(null);
+      setApiHealth(null);
       setLiveHealthError("");
       return;
     }
@@ -175,15 +219,15 @@ export default function App() {
         }
         const parsed = parseApiHealthResponse(payload);
         if (!parsed) {
-          setLiveOpenAiHealth(null);
+          setApiHealth(null);
           setLiveHealthError("Could not read live provider readiness from the API.");
           return;
         }
-        setLiveOpenAiHealth(parsed.liveOpenAi);
+        setApiHealth(parsed);
         setLiveHealthError("");
       } catch {
         if (!cancelled) {
-          setLiveOpenAiHealth(null);
+          setApiHealth(null);
           setLiveHealthError("Could not reach the API health endpoint. Is npm run dev running?");
         }
       }
@@ -207,7 +251,9 @@ export default function App() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(buildGenerationRequestBody(providerSettings, prompt, imageQuality)),
+        body: JSON.stringify(
+          buildGenerationRequestBody(providerSettings, prompt, { imageQuality, imageTheme, imageSize }),
+        ),
       });
 
       let payload: unknown;
@@ -230,6 +276,8 @@ export default function App() {
           id: `${data.generatedAt}-${Math.random().toString(36).slice(2, 9)}`,
           prompt: prompt.trim(),
           imageQuality,
+          imageTheme,
+          imageSize,
           result: data,
         };
         return [entry, ...previous].slice(0, 24);
@@ -246,6 +294,8 @@ export default function App() {
     setResult(entry.result);
     setPrompt(entry.prompt);
     setImageQuality(entry.imageQuality);
+    setImageTheme(entry.imageTheme);
+    setImageSize(entry.imageSize);
     setPreviewError(null);
   }
 
@@ -274,22 +324,15 @@ export default function App() {
   const generateDisabled =
     loading ||
     !prompt.trim() ||
-    (providerSettings.providerMode === "live" && liveOpenAiHealth !== null && !liveOpenAiHealth.ready);
+    (providerSettings.providerMode === "live" && selectedLiveHealth !== null && !selectedLiveHealth.ready);
 
   return (
     <div className="tdg-app">
       <header className="tdg-topnav">
-        <div className="tdg-brand">
-          <span className="tdg-logo" aria-hidden />
-          <span className="tdg-title">Technical Diagram Generator</span>
-        </div>
-        <div className="tdg-topnav-actions">
-          <span className="tdg-provider-pill" title="Generation mode and target vendor (from Settings)">
-            {providerSummaryLabel(providerSettings)}
-          </span>
-          <button type="button" className="tdg-text-btn" onClick={() => setSettingsOpen(true)}>
-            Settings
-          </button>
+        <div className="tdg-shell tdg-topnav-inner">
+          <div className="tdg-brand">
+            <img className="tdg-logo" src={tdgLogo} alt="Technical Diagram Generator" />
+          </div>
         </div>
       </header>
 
@@ -355,29 +398,33 @@ export default function App() {
                     persistProviderSettings(next);
                   }}
                 >
-                  <option value="openai">OpenAI (live, implemented)</option>
-                  <option value="google" disabled>
-                    Google (not implemented in this build)
-                  </option>
+                  <option value="openai">OpenAI (live)</option>
+                  <option value="google">Google (live)</option>
                   <option value="cloudflare" disabled>
                     Cloudflare (not implemented in this build)
                   </option>
                 </select>
                 <p className="tdg-settings-hint">
-                  Mock mode ignores the provider target. Live mode only calls OpenAI today.
+                  Mock mode ignores the provider target. Live mode calls the selected vendor on the server.
                 </p>
                 {providerSettings.providerMode === "live" ? (
                   <p
-                    className={`tdg-readiness ${liveOpenAiHealth?.ready ? "is-ready" : "is-not-ready"}`}
+                    className={`tdg-readiness ${selectedLiveHealth?.ready ? "is-ready" : "is-not-ready"}`}
                     role="status"
                     aria-live="polite"
                   >
                     {liveHealthError
                       ? liveHealthError
-                      : liveOpenAiHealth?.ready
-                        ? `Server ready for live OpenAI (${liveOpenAiHealth.imageModel}).`
-                        : liveOpenAiHealth?.reason ??
-                          "Live OpenAI is not ready. Check OPENAI_API_KEY and OPENAI_IMAGE_MODEL on the server."}
+                      : selectedLiveHealth?.ready
+                        ? providerSettings.providerId === "google" &&
+                          selectedLiveHealth.baseUrlHost &&
+                          selectedLiveHealth.requestPath
+                          ? `Server structurally ready for live Google (${selectedLiveHealth.imageModel} via ${selectedLiveHealth.baseUrlHost}${selectedLiveHealth.requestPath}). A live request is still required to validate the API key and quotas.`
+                          : `Server ready for live ${providerSummaryLabel(providerSettings).replace(/^Live · /, "")} (${selectedLiveHealth.imageModel}).`
+                        : selectedLiveHealth?.reason ??
+                          (providerSettings.providerId === "google"
+                            ? "Live Google is not ready. Check GOOGLE_API_KEY, GOOGLE_IMAGE_MODEL, and GOOGLE_BASE_URL on the server."
+                            : "Live OpenAI is not ready. Check OPENAI_API_KEY and OPENAI_IMAGE_MODEL on the server.")}
                   </p>
                 ) : null}
               </div>
@@ -386,15 +433,16 @@ export default function App() {
         </div>
       ) : null}
 
-      <main className="tdg-page">
+      <main className="tdg-page tdg-shell">
         <form className="tdg-generator" onSubmit={handleGenerate}>
           <div className="tdg-workspace">
-            <section className="tdg-panel tdg-panel-input" aria-labelledby="prompt-heading">
-              <p className="tdg-step">1</p>
-              <h1 id="prompt-heading" className="tdg-panel-title">
-                Describe your diagram
-              </h1>
-              <p className="tdg-panel-sub">Use natural language. Be specific about systems, flows, and relationships.</p>
+            <section className="tdg-panel tdg-panel-input tdg-card" aria-labelledby="prompt-heading">
+              <header className="tdg-panel-header">
+                <h1 id="prompt-heading" className="tdg-panel-title">
+                  Describe your diagram
+                </h1>
+                <p className="tdg-panel-sub">Use natural language. Be specific about systems, flows, and relationships.</p>
+              </header>
 
               <div className="tdg-field">
                 <label htmlFor="diagram-prompt" className="visually-hidden">
@@ -408,7 +456,7 @@ export default function App() {
                     onChange={(event) => setPrompt(event.target.value)}
                     placeholder={EXAMPLE_PROMPTS.architecture}
                     maxLength={GENERATION_PROMPT_MAX_LENGTH}
-                    rows={10}
+                    rows={6}
                     spellCheck
                   />
                   <span className="tdg-char-count" aria-live="polite">
@@ -433,32 +481,98 @@ export default function App() {
                 ))}
               </div>
 
-              <fieldset className="tdg-quality">
-                <legend className="tdg-quality-legend">Image quality</legend>
-                <div className="tdg-quality-options" role="radiogroup" aria-label="Image quality">
-                  {IMAGE_QUALITY_OPTIONS.map((option) => (
-                    <label key={option.value} className={`tdg-quality-option ${imageQuality === option.value ? "is-selected" : ""}`}>
-                      <input
-                        type="radio"
-                        name="image-quality"
-                        value={option.value}
-                        checked={imageQuality === option.value}
-                        onChange={() => setImageQuality(option.value)}
-                      />
-                      <span className="tdg-quality-label">{option.label}</span>
-                      <span className="tdg-quality-cost">{option.costHint} / image</span>
-                    </label>
-                  ))}
+              <div className="tdg-card tdg-options-card">
+                <div className="tdg-option-block">
+                  <span className="tdg-option-label" id="diagram-size-label">
+                    Diagram size
+                  </span>
+                  <div className="tdg-radio-choices" role="radiogroup" aria-labelledby="diagram-size-label">
+                    {IMAGE_SIZE_OPTIONS.map((option) => (
+                      <label
+                        key={option.value}
+                        className={`tdg-radio-choice ${imageSize === option.value ? "is-selected" : ""}`}
+                      >
+                        <input
+                          type="radio"
+                          name="image-size"
+                          value={option.value}
+                          checked={imageSize === option.value}
+                          onChange={() => setImageSize(option.value)}
+                        />
+                        <span className="tdg-radio-choice-text">{option.label}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </fieldset>
+
+                <div className="tdg-option-block">
+                  <span className="tdg-option-label" id="image-quality-label">
+                    Image quality
+                  </span>
+                  <div className="tdg-option-controls-row">
+                    <div className="tdg-radio-choices" role="radiogroup" aria-labelledby="image-quality-label">
+                      {imageQualityOptions.map((option) => (
+                        <label
+                          key={option.value}
+                          className={`tdg-radio-choice ${imageQuality === option.value ? "is-selected" : ""}`}
+                        >
+                          <input
+                            type="radio"
+                            name="image-quality"
+                            value={option.value}
+                            checked={imageQuality === option.value}
+                            onChange={() => setImageQuality(option.value)}
+                          />
+                          <span className="tdg-radio-choice-text">
+                            {option.label}{" "}
+                            <span className="tdg-radio-choice-meta">({option.costHint})</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    <div className="tdg-option-tools">
+                      <span
+                        className={`tdg-provider-pill ${providerSettings.providerMode === "live" ? "is-live" : "is-mock"}`}
+                        title="Generation mode and target vendor (change in Settings)"
+                      >
+                        {providerSummaryLabel(providerSettings)}
+                      </span>
+                      <button
+                        type="button"
+                        className={`tdg-icon-action ${imageTheme === "dark" ? "is-active" : ""}`}
+                        onClick={() => setImageTheme((theme) => (theme === "dark" ? "light" : "dark"))}
+                        aria-pressed={imageTheme === "dark"}
+                        aria-label={
+                          imageTheme === "dark"
+                            ? "Dark diagram tone. Activate for light diagram."
+                            : "Light diagram tone. Activate for dark diagram."
+                        }
+                        title={imageTheme === "dark" ? "Switch to light diagram" : "Switch to dark diagram"}
+                      >
+                        {imageTheme === "light" ? <SunIcon /> : <CrescentIcon />}
+                      </button>
+                      <button
+                        type="button"
+                        className={`tdg-icon-action ${settingsOpen ? "is-active" : ""}`}
+                        onClick={() => setSettingsOpen(true)}
+                        aria-label="Settings"
+                        aria-expanded={settingsOpen}
+                        title="Settings"
+                      >
+                        <SettingsIcon />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               {providerSettings.providerMode === "live" &&
-              liveOpenAiHealth &&
-              !liveOpenAiHealth.ready &&
+              selectedLiveHealth &&
+              !selectedLiveHealth.ready &&
               !liveHealthError ? (
                 <p className="tdg-live-hint" role="status">
-                  {liveOpenAiHealth.reason ??
-                    "Live OpenAI is not ready on the server. Open Settings to review configuration."}
+                  {selectedLiveHealth.reason ??
+                    "The selected live provider is not ready on the server. Open Settings to review configuration."}
                 </p>
               ) : null}
 
@@ -468,46 +582,23 @@ export default function App() {
               </button>
             </section>
 
-            <section className="tdg-panel tdg-panel-preview" aria-labelledby="preview-heading">
-              <div className="tdg-preview-toolbar">
-                <div>
-                  <p className="tdg-step">2</p>
-                  <h2 id="preview-heading" className="tdg-panel-title">
-                    Generated diagram
-                  </h2>
-                </div>
-                <div className="tdg-preview-toolbar-actions">
-                  <span className={`tdg-status-pill tdg-status-pill--${previewPhase}`}>{previewStatusLabel(previewPhase)}</span>
-                  <div className="tdg-preview-theme" role="group" aria-label="Preview frame theme">
-                    <button
-                      type="button"
-                      className={previewFrameTheme === "light" ? "is-active" : ""}
-                      onClick={() => setPreviewFrameTheme("light")}
-                      aria-pressed={previewFrameTheme === "light"}
-                    >
-                      Light frame
-                    </button>
-                    <button
-                      type="button"
-                      className={previewFrameTheme === "dark" ? "is-active" : ""}
-                      onClick={() => setPreviewFrameTheme("dark")}
-                      aria-pressed={previewFrameTheme === "dark"}
-                    >
-                      Dark frame
-                    </button>
-                  </div>
-                </div>
-              </div>
+            <section className="tdg-panel tdg-panel-preview tdg-card" aria-labelledby="preview-heading">
+              <header className="tdg-preview-toolbar">
+                <h2 id="preview-heading" className="tdg-panel-title">
+                  Generated diagram
+                </h2>
+                <span className={`tdg-status-pill tdg-status-pill--${previewPhase}`}>{previewStatusLabel(previewPhase)}</span>
+              </header>
 
               <div
-                className={`tdg-preview-canvas tdg-preview-canvas--${previewFrameTheme} ${previewPhase === "error" ? "has-error" : ""} ${previewPhase === "empty" ? "is-empty" : ""}`}
+                className={`tdg-preview-canvas ${showPreviewImage ? "has-image" : ""} ${showPreviewImage ? previewCanvasSizeClass(activePreviewSize) : ""} ${previewPhase === "error" ? "has-error" : ""} ${previewPhase === "empty" ? "is-empty" : ""}`}
               >
                 {previewPhase === "loading" ? (
                   <div className="tdg-preview-state" role="status" aria-live="polite">
                     <span className="tdg-spinner" aria-hidden />
                     <p>
                       {providerSettings.providerMode === "live"
-                        ? "Generating with OpenAI (this can take 20–40 seconds)…"
+                        ? `Generating with ${providerSummaryLabel(providerSettings).replace(/^Live · /, "")} (this can take 20–40 seconds)…`
                         : "Generating your diagram…"}
                     </p>
                   </div>
@@ -532,7 +623,14 @@ export default function App() {
                 ) : null}
                 {showPreviewImage && result ? (
                   <div className="tdg-image-stage">
-                    <img key={result.generatedAt} src={imageSrc} alt="Generated diagram" />
+                    <img
+                      key={result.generatedAt}
+                      className="tdg-preview-image tdg-preview-image--zoomable"
+                      src={imageSrc}
+                      alt="Generated diagram"
+                      title="Double-click to view fullscreen"
+                      onDoubleClick={handlePreviewImageDoubleClick}
+                    />
                   </div>
                 ) : null}
                 {previewPhase === "empty" ? (
@@ -563,7 +661,7 @@ export default function App() {
                   </>
                 ) : (
                   <p className="tdg-meta-line tdg-meta-line--muted">
-                    Select image quality, describe your diagram, then generate.
+                    Choose size, quality, and tone, describe your diagram, then generate.
                   </p>
                 )}
               </div>
@@ -587,7 +685,15 @@ export default function App() {
                   {history.map((entry) => (
                     <li key={entry.id}>
                       <button type="button" className="tdg-history-card" onClick={() => applyHistoryEntry(entry)}>
-                        <span className="tdg-history-thumb" aria-hidden>
+                        <span
+                          className="tdg-history-thumb"
+                          aria-hidden
+                          style={
+                            {
+                              "--thumb-aspect-ratio": historyThumbAspectRatio(entry.imageSize),
+                            } as CSSProperties
+                          }
+                        >
                           <img src={generationImageSrc(entry.result)} alt="" />
                         </span>
                         <span className="tdg-history-caption">
@@ -603,7 +709,57 @@ export default function App() {
           </section>
         </form>
       </main>
+
+      <PreviewImageFullscreen
+        open={previewFullscreenOpen}
+        imageSrc={showPreviewImage ? imageSrc : ""}
+        onClose={closePreviewFullscreen}
+      />
     </div>
+  );
+}
+
+function SunIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="2" />
+      <path
+        d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function CrescentIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+      <path
+        d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function SettingsIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+      <path
+        d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 

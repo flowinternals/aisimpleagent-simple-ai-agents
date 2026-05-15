@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { PreviewImageFullscreen } from "./components/PreviewImageFullscreen";
-import tdgLogo from "./assets/tdg_logo.png";
+import tdgLogoMark from "./assets/tdg_logo_mark.png";
 import { parseGenerationApiSuccess, type GenerationResponse } from "./types/generation";
 import {
   getGenerationPreviewErrorPresentation,
@@ -331,7 +331,8 @@ export default function App() {
       <header className="tdg-topnav">
         <div className="tdg-shell tdg-topnav-inner">
           <div className="tdg-brand">
-            <img className="tdg-logo" src={tdgLogo} alt="Technical Diagram Generator" />
+            <img className="tdg-logo-mark" src={tdgLogoMark} alt="" aria-hidden />
+            <span className="tdg-brand-title">Technical Diagram Generator</span>
           </div>
         </div>
       </header>

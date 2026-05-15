@@ -61,15 +61,29 @@
 .tdg-brand {
   display: flex;
   align-items: center;
+  gap: 12px;
+  min-width: 0;
 }
 
-.tdg-logo {
+.tdg-logo-mark {
   flex-shrink: 0;
   display: block;
-  height: 44px;
+  height: 32px;
   width: auto;
-  max-width: min(360px, 58vw);
   object-fit: contain;
+}
+
+.tdg-brand-title {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  white-space: nowrap;
+  background: linear-gradient(90deg, #7c5cff 0%, #5b8def 55%, #22d3ee 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
 }
 
 .tdg-provider-pill {

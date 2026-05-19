@@ -37,4 +37,26 @@ describe("getGenerationPreviewErrorPresentation", () => {
     expect(presentation.action).toBe("switch-to-mock");
     expect(presentation.actionLabel).toBe("Switch to mock mode");
   });
+
+  it("offers retry guidance for rate limits", () => {
+    const presentation = getGenerationPreviewErrorPresentation(
+      fromGenerationApiErrorBody({
+        ok: false,
+        error: "The image provider is rate limiting requests.",
+        code: "LIVE_PROVIDER_RATE_LIMIT",
+        issues: [],
+      }),
+    );
+    expect(presentation.title).toMatch(/rate limit/i);
+    expect(presentation.action).toBe("switch-to-mock");
+  });
+
+  it("explains when the preview image cannot be rendered", () => {
+    const presentation = getGenerationPreviewErrorPresentation({
+      code: "IMAGE_RESULT_UNAVAILABLE",
+      message: "The diagram image could not be loaded in the preview.",
+    });
+    expect(presentation.title).toMatch(/preview unavailable/i);
+    expect(presentation.hint).toBeTruthy();
+  });
 });

@@ -4,6 +4,8 @@ import tdgLogoMark from "./assets/tdg_logo_mark.png";
 import { parseGenerationApiSuccess, type GenerationResponse } from "./types/generation";
 import {
   getGenerationPreviewErrorPresentation,
+  imageResultUnavailableError,
+  previewImageLoadFailedError,
   toGenerationPreviewError,
   toGenerationPreviewErrorFromCaught,
   type GenerationPreviewError,
@@ -11,7 +13,6 @@ import {
 import {
   downloadGenerationImage,
   formatGenerationResultMetadata,
-  generationDownloadFileName,
   generationImageSrc,
   hasValidGenerationImageResult,
 } from "./lib/generationResultUi";
@@ -43,6 +44,7 @@ import { getPreviewPhase, shouldShowPreviewImage } from "../shared/previewState.
 import "./App.css";
 
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
+const HISTORY_MAX_ENTRIES = 24;
 
 const EXAMPLE_PROMPTS: Record<string, string> = {
   architecture:
@@ -166,8 +168,6 @@ export default function App() {
     return generationImageSrc(result);
   }, [result, showPreviewImage]);
 
-  const downloadFileName = result && showPreviewImage ? generationDownloadFileName(result) : "";
-
   const closePreviewFullscreen = useCallback(() => {
     setPreviewFullscreenOpen(false);
   }, []);
@@ -182,6 +182,10 @@ export default function App() {
     if (showPreviewImage && imageSrc) {
       setPreviewFullscreenOpen(true);
     }
+  }
+
+  function handlePreviewImageError() {
+    setPreviewError(previewImageLoadFailedError());
   }
 
   const activePreviewSize = result?.sizeLabel ?? imageSize;
@@ -270,6 +274,11 @@ export default function App() {
 
       const data = parseGenerationApiSuccess(payload);
 
+      if (!hasValidGenerationImageResult(data)) {
+        setPreviewError(imageResultUnavailableError());
+        return;
+      }
+
       setResult(data);
       setHistory((previous) => {
         const entry: HistoryEntry = {
@@ -280,7 +289,7 @@ export default function App() {
           imageSize,
           result: data,
         };
-        return [entry, ...previous].slice(0, 24);
+        return [entry, ...previous].slice(0, HISTORY_MAX_ENTRIES);
       });
     } catch (caught) {
       setPreviewError(toGenerationPreviewErrorFromCaught(caught));
@@ -631,6 +640,7 @@ export default function App() {
                       alt="Generated diagram"
                       title="Double-click to view fullscreen"
                       onDoubleClick={handlePreviewImageDoubleClick}
+                      onError={handlePreviewImageError}
                     />
                   </div>
                 ) : null}
@@ -680,7 +690,9 @@ export default function App() {
             </div>
             <div className={`tdg-history-track ${history.length === 0 ? "is-empty" : ""}`}>
               {history.length === 0 ? (
-                <p className="tdg-history-empty">No diagrams yet. Your last five runs appear here.</p>
+                <p className="tdg-history-empty">
+                  No diagrams yet. Up to {HISTORY_MAX_ENTRIES} recent runs appear here.
+                </p>
               ) : (
                 <ul className="tdg-history-list">
                   {history.map((entry) => (

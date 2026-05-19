@@ -84,7 +84,7 @@ export async function generateMockResult({ providerPrompt, imageQuality, imageTh
   <rect width="${width}" height="${height}" rx="32" fill="${palette.canvas}"/>
   <rect x="64" y="64" width="${width - 128}" height="112" rx="24" fill="${palette.header}"/>
   <text x="96" y="118" fill="${palette.headerText}" font-family="Segoe UI, Arial, sans-serif" font-size="42" font-weight="700">Starter Agent App</text>
-  <text x="96" y="154" fill="${palette.headerSub}" font-family="Segoe UI, Arial, sans-serif" font-size="20">Mock ${theme} diagram · ${size}</text>
+  <text x="96" y="154" fill="${palette.headerSub}" font-family="Segoe UI, Arial, sans-serif" font-size="20">Mock ${theme} diagram - ${size}</text>
 
   <rect x="88" y="228" width="272" height="480" rx="28" fill="${palette.panelA}" stroke="${palette.stroke}" stroke-width="2"/>
   <rect x="464" y="228" width="272" height="480" rx="28" fill="${palette.panelB}" stroke="${palette.stroke}" stroke-width="2"/>

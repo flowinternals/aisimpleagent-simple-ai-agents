@@ -50,6 +50,24 @@ export function fromGenerationApiErrorBody(body: GenerationApiErrorBody): Genera
   };
 }
 
+/** When the API envelope is valid but the browser cannot render the returned image bytes/URL. */
+export function previewImageLoadFailedError(): GenerationPreviewError {
+  return {
+    code: "IMAGE_RESULT_UNAVAILABLE",
+    message: "The diagram image could not be loaded in the preview.",
+  };
+}
+
+/** When the success envelope parses but lacks a displayable image payload. */
+export function imageResultUnavailableError(
+  message = "The server response did not include a displayable diagram image.",
+): GenerationPreviewError {
+  return {
+    code: "IMAGE_RESULT_UNAVAILABLE",
+    message,
+  };
+}
+
 export function toGenerationPreviewErrorFromCaught(caught: unknown): GenerationPreviewError {
   if (caught instanceof Error) {
     return {
@@ -96,6 +114,22 @@ export function getGenerationPreviewErrorPresentation(
         action: "switch-to-mock",
         actionLabel: "Switch to mock mode",
       };
+    case "LIVE_PROVIDER_RATE_LIMIT":
+      return {
+        title: "Provider rate limit reached",
+        message: error.message,
+        hint: "Wait a moment before trying again, or switch to mock mode to keep testing locally.",
+        action: "switch-to-mock",
+        actionLabel: "Switch to mock mode",
+      };
+    case "IMAGE_RESULT_UNAVAILABLE":
+      return {
+        title: "Diagram preview unavailable",
+        message: error.message,
+        hint: "Try generating again. If this persists, switch to mock mode while testing locally.",
+        action: "switch-to-mock",
+        actionLabel: "Switch to mock mode",
+      };
     case "NETWORK_ERROR":
       return {
         title: "Could not reach the server",
@@ -124,6 +158,9 @@ function inferCodeFromHttpStatus(httpStatus?: number): string {
   if (httpStatus === 503) {
     return "LIVE_PROVIDER_NOT_CONFIGURED";
   }
+  if (httpStatus === 429) {
+    return "LIVE_PROVIDER_RATE_LIMIT";
+  }
   if (httpStatus === 502 || httpStatus === 504) {
     return "LIVE_PROVIDER_FAILED";
   }
@@ -139,6 +176,9 @@ function inferCodeFromHttpStatus(httpStatus?: number): string {
 function defaultMessageForHttpStatus(httpStatus?: number): string {
   if (httpStatus === 402) {
     return "OpenAI billing or usage limit reached. Add credits in your OpenAI account, or switch to Mock mode to keep testing locally.";
+  }
+  if (httpStatus === 429) {
+    return "The image provider is rate limiting requests. Wait a moment and try again, or switch to Mock mode in Settings.";
   }
   if (httpStatus === 502 || httpStatus === 504) {
     return "The image provider could not complete this request. Please try again in a moment.";

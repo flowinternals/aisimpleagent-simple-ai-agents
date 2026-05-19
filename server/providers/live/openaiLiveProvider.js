@@ -171,8 +171,14 @@ export async function generateOpenAiLiveImage({ providerPrompt, imageQuality, im
       );
     }
     if (response.status === 429) {
+      if (isOpenAiBillingOrQuotaError(detail)) {
+        throw new ProviderAdapterError(
+          "LIVE_PROVIDER_QUOTA_EXCEEDED",
+          detail || "OpenAI billing or quota limit reached.",
+        );
+      }
       throw new ProviderAdapterError(
-        "LIVE_PROVIDER_FAILED",
+        "LIVE_PROVIDER_RATE_LIMIT",
         "OpenAI rate limit reached. Try again shortly.",
       );
     }

@@ -11,8 +11,8 @@
     "preview": "vite preview",
     "test": "node --test shared/*.test.js server/**/*.test.js && vitest run",
     "test:unit": "node --test shared/*.test.js server/**/*.test.js",
-    "test:readiness": "node scripts/verify-generation-readiness.mjs",
-    "test:readiness:live": "node scripts/verify-generation-readiness.mjs --live"
+    "test:readiness": "node tests/regression/verify-generation-readiness.mjs",
+    "test:readiness:live": "node tests/regression/verify-generation-readiness.mjs --live"
   },
   "dependencies": {
     "cors": "^2.8.5",

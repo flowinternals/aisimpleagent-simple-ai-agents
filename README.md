@@ -26,6 +26,8 @@ This scaffold is intentionally a reusable starting point, not a prebuilt exercis
 - `npm run dev:ui` starts the Vite frontend
 - `npm run dev:api` starts the Express backend
 - `npm run build` builds the frontend
+- `npm test` runs colocated unit tests (Node + Vitest)
+- `npm run test:readiness` runs the mock HTTP regression gate (API must be running)
 
 ## Folders
 
@@ -34,4 +36,5 @@ This scaffold is intentionally a reusable starting point, not a prebuilt exercis
 - `server/services/` agent logic
 - `server/providers/` provider adapter and provider implementations
 - `server/validation/` request validation helpers
+- `tests/` reusable e2e, regression, and fixture assets — see [`tests/README.md`](tests/README.md)
 - `release-notes/` install logs

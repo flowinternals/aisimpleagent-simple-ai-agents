@@ -12,7 +12,8 @@
     "test": "node --test shared/*.test.js server/**/*.test.js && vitest run",
     "test:unit": "node --test shared/*.test.js server/**/*.test.js",
     "test:readiness": "node tests/regression/verify-generation-readiness.mjs",
-    "test:readiness:live": "node tests/regression/verify-generation-readiness.mjs --live"
+    "test:readiness:live": "node tests/regression/verify-generation-readiness.mjs --live",
+    "check:text": "node scripts/check-text-hygiene.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

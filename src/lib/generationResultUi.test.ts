@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { GenerationResponse } from "../types/generation";
 import {
+  formatGenerationResultMetadata,
   generationDownloadFileName,
   generationImageSrc,
   hasValidGenerationImageResult,
@@ -53,6 +54,33 @@ describe("generationImageSrc", () => {
 
   it("falls back to imageData", () => {
     expect(generationImageSrc(baseResult)).toBe(baseResult.imageData);
+  });
+
+  it("does not treat javascript: URLs as renderable image sources", () => {
+    expect(
+      hasValidGenerationImageResult({
+        ...baseResult,
+        imageData: "",
+        imageUrl: "javascript:alert(1)",
+      }),
+    ).toBe(false);
+    expect(
+      generationImageSrc({
+        ...baseResult,
+        imageData: "data:image/png;base64,YWJj",
+        imageUrl: "javascript:alert(1)",
+      }),
+    ).toBe("data:image/png;base64,YWJj");
+  });
+
+  it("rejects non-http(s) imageUrl values for display eligibility", () => {
+    expect(
+      hasValidGenerationImageResult({
+        ...baseResult,
+        imageData: "",
+        imageUrl: "file:///etc/passwd",
+      }),
+    ).toBe(false);
   });
 });
 
@@ -123,5 +151,21 @@ describe("generationDownloadFileName", () => {
         fileName: "..",
       }),
     ).toMatch(/^diagram-2026-05-15T12-00-00-000Z\.png$/);
+  });
+});
+
+describe("formatGenerationResultMetadata", () => {
+  it("returns plain-text metadata and uses sanitized download filename", () => {
+    const line = formatGenerationResultMetadata({
+      ...baseResult,
+      fileName: "../../../etc/passwd.png",
+      modelLabel: "gpt-test",
+      qualityLabel: "high",
+      themeLabel: "dark",
+      sizeLabel: "16:9",
+    });
+    expect(line).toContain("Model: gpt-test");
+    expect(line).toContain("File: passwd.png");
+    expect(line).not.toMatch(/<img/i);
   });
 });

@@ -1,5 +1,6 @@
 import { parseCookies } from "../auth/parseCookies.js";
 import { DEMO_SESSION_COOKIE, getDemoSession } from "../auth/demoSessionStore.js";
+import { logWarn } from "../logging/trainingLog.js";
 
 /**
  * Require a valid server-owned demo session before protected routes run.
@@ -9,6 +10,7 @@ export function requireDemoSession(request, response, next) {
   const cookies = parseCookies(request.headers.cookie);
   const session = getDemoSession(cookies[DEMO_SESSION_COOKIE]);
   if (!session) {
+    logWarn("Demo session required", { code: "UNAUTHORIZED", route: "POST /api/generate" });
     return response.status(401).json({
       ok: false,
       error: "Sign in required.",

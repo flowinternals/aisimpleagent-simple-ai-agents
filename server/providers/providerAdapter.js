@@ -5,6 +5,7 @@ import { generateCloudflareLiveImage } from "./live/cloudflareLiveProvider.js";
 import { generateGoogleLiveImage } from "./live/googleLiveProvider.js";
 import { generateOpenAiLiveImage } from "./live/openaiLiveProvider.js";
 import { generateMockResult } from "./mockResultProvider.js";
+import { logInfo } from "../logging/trainingLog.js";
 
 /**
  * Provider execution boundary: runs mock or the selected live vendor module and returns a
@@ -26,7 +27,7 @@ export async function generateWithProvider({
     return normalizeGenerationAdapterResult(raw, "mock");
   }
 
-  console.info("Provider adapter live dispatch", {
+  logInfo("Provider adapter live dispatch", {
     providerMode: "live",
     providerId,
     imageQuality,

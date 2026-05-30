@@ -23,6 +23,16 @@ describe("mapGenerationErrorToHttp", () => {
     assert.equal(mapped.status, 502);
     assert.equal(mapped.code, "ADAPTER_RESULT_INVALID");
     assert.match(mapped.message, /invalid result/i);
+    assert.doesNotMatch(mapped.message, /fileName/);
+  });
+
+  it("maps provider rate limit to 429 without internal detail", () => {
+    const mapped = mapGenerationErrorToHttp(
+      new ProviderAdapterError("LIVE_PROVIDER_RATE_LIMIT", "vendor said slow down now"),
+    );
+    assert.equal(mapped.status, 429);
+    assert.equal(mapped.code, "LIVE_PROVIDER_RATE_LIMIT");
+    assert.doesNotMatch(mapped.message, /slow down now/);
   });
 
   it("maps HttpError instances directly", () => {

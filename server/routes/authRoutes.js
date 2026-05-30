@@ -8,6 +8,7 @@ import {
   destroyDemoSession,
   getDemoSession,
 } from "../auth/demoSessionStore.js";
+import { logWarn } from "../logging/trainingLog.js";
 
 export const authRouter = express.Router();
 
@@ -47,6 +48,7 @@ authRouter.get("/session", (request, response) => {
 authRouter.post("/sign-in", (request, response) => {
   const verification = verifyDemoCredentials(request.body?.userId, request.body?.password);
   if (verification.reason === "NOT_CONFIGURED") {
+    logWarn("Demo sign-in unavailable", { code: "DEMO_AUTH_NOT_CONFIGURED" });
     return response.status(503).json({
       ok: false,
       error: "Demo sign-in is not configured on the server.",
@@ -55,6 +57,7 @@ authRouter.post("/sign-in", (request, response) => {
     });
   }
   if (!verification.ok) {
+    logWarn("Demo sign-in rejected", { code: "INVALID_CREDENTIALS" });
     return response.status(401).json({
       ok: false,
       error: "Invalid demo user ID or password.",

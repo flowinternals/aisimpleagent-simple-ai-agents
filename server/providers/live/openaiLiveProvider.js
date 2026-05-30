@@ -1,4 +1,9 @@
 import { ProviderAdapterError } from "../../errors/providerAdapterError.js";
+import { logWarn } from "../../logging/trainingLog.js";
+import {
+  buildOpenAiErrorLogSummary,
+  extractOpenAiErrorMessage,
+} from "../../../shared/openaiProviderDiagnostics.js";
 import { DEFAULT_IMAGE_QUALITY, normalizeImageQuality } from "../../../shared/imageQuality.js";
 import { normalizeImageSize, openAiImageDimensions } from "../../../shared/imageSize.js";
 
@@ -47,25 +52,6 @@ function openAiImagePrompt(providerPrompt, model) {
     return trimmed;
   }
   return `${trimmed.slice(0, max - 3)}...`;
-}
-
-/**
- * @param {unknown} json
- * @returns {string}
- */
-function extractOpenAiErrorMessage(json) {
-  if (!json || typeof json !== "object") {
-    return "";
-  }
-  const err = /** @type {{ error?: unknown }} */ (json).error;
-  if (typeof err === "string") {
-    return err;
-  }
-  if (err && typeof err === "object" && "message" in err) {
-    const m = /** @type {{ message?: unknown }} */ (err).message;
-    return typeof m === "string" ? m : "";
-  }
-  return "";
 }
 
 /**
@@ -163,7 +149,7 @@ export async function generateOpenAiLiveImage({ providerPrompt, imageQuality, im
 
   if (!response.ok) {
     const detail = extractOpenAiErrorMessage(json);
-    console.error("OpenAI images error", response.status, detail || json);
+    logWarn("OpenAI images API error", buildOpenAiErrorLogSummary(response.status, json));
     if (response.status === 401 || response.status === 403) {
       throw new ProviderAdapterError(
         "LIVE_PROVIDER_NOT_CONFIGURED",
@@ -202,7 +188,10 @@ export async function generateOpenAiLiveImage({ providerPrompt, imageQuality, im
       : "";
 
   if (!b64.trim()) {
-    console.error("OpenAI images response missing b64_json", json);
+    logWarn("OpenAI images unexpected response shape", {
+      httpStatus: response.status,
+      issue: "missing_b64_json",
+    });
     throw new ProviderAdapterError(
       "LIVE_PROVIDER_FAILED",
       "OpenAI returned an unexpected response shape.",

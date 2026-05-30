@@ -43,7 +43,16 @@ import { buildGenerationRequestBody } from "../shared/buildGenerationRequestBody
 import { GENERATION_PROMPT_MAX_LENGTH } from "../shared/generationLimits.js";
 import { getPreviewPhase, shouldShowPreviewImage } from "../shared/previewState.js";
 import { parseDemoAuthError, parseDemoSessionResponse, type DemoUser } from "./types/demoSession";
+import { logFrontendDebug, logFrontendInfo } from "./lib/trainingLog";
 import "./App.css";
+
+function apiErrorCode(payload: unknown): string | undefined {
+  if (payload && typeof payload === "object" && "code" in payload) {
+    const code = (payload as { code?: unknown }).code;
+    return typeof code === "string" ? code : undefined;
+  }
+  return undefined;
+}
 
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
 const fetchCredentials: RequestCredentials = "include";
@@ -196,10 +205,14 @@ export default function App() {
           return;
         }
         const user = response.ok ? parseDemoSessionResponse(payload) : null;
+        if (user) {
+          logFrontendInfo("Demo session restored", { userId: user.userId });
+        }
         setDemoUser(user);
         setSignInError("");
       } catch {
         if (!cancelled) {
+          logFrontendDebug("Demo session check failed", { reason: "network_or_unreachable" });
           setDemoUser(null);
         }
       } finally {
@@ -228,13 +241,19 @@ export default function App() {
       const payload: unknown = await response.json();
       const user = response.ok ? parseDemoSessionResponse(payload) : null;
       if (!user) {
+        logFrontendDebug("Demo sign-in failed", {
+          httpStatus: response.status,
+          code: apiErrorCode(payload) ?? "unknown",
+        });
         setSignInError(parseDemoAuthError(payload, "Sign-in failed."));
         setDemoUser(null);
         return;
       }
+      logFrontendInfo("Demo sign-in succeeded", { userId: user.userId });
       setDemoUser(user);
       setSignInError("");
     } catch {
+      logFrontendDebug("Demo sign-in unreachable", { reason: "network_or_unreachable" });
       setSignInError("Could not reach the sign-in endpoint. Is npm run dev running?");
       setDemoUser(null);
     } finally {
@@ -303,6 +322,7 @@ export default function App() {
         }
         const parsed = parseApiHealthResponse(payload);
         if (!parsed) {
+          logFrontendDebug("Live provider health unreadable", { httpStatus: response.status });
           setApiHealth(null);
           setLiveHealthError("Could not read live provider readiness from the API.");
           return;
@@ -311,6 +331,7 @@ export default function App() {
         setLiveHealthError("");
       } catch {
         if (!cancelled) {
+          logFrontendDebug("Live provider health unreachable", { reason: "network_or_unreachable" });
           setApiHealth(null);
           setLiveHealthError("Could not reach the API health endpoint. Is npm run dev running?");
         }
@@ -349,6 +370,10 @@ export default function App() {
       }
 
       if (!response.ok) {
+        logFrontendDebug("Generation failed", {
+          httpStatus: response.status,
+          code: apiErrorCode(payload) ?? "unknown",
+        });
         setPreviewError(toGenerationPreviewError(payload, response.status));
         return;
       }
@@ -373,6 +398,9 @@ export default function App() {
         return [entry, ...previous].slice(0, HISTORY_MAX_ENTRIES);
       });
     } catch (caught) {
+      logFrontendDebug("Generation request error", {
+        reason: caught instanceof Error ? caught.message : "unknown",
+      });
       setPreviewError(toGenerationPreviewErrorFromCaught(caught));
       setResult(null);
     } finally {

@@ -10,6 +10,7 @@ import { authRouter } from "./routes/authRoutes.js";
 import { generationRouter } from "./routes/generationRoutes.js";
 import { requireDemoSession } from "./middleware/requireDemoSession.js";
 import { applyTrainingTransportHeaders } from "./middleware/applyTrainingTransportHeaders.js";
+import { logError, logInfo, logWarn } from "./logging/trainingLog.js";
 
 const app = express();
 const port = Number(process.env.PORT || 8787);
@@ -26,6 +27,7 @@ app.use((error, _request, response, next) => {
       (error instanceof SyntaxError && "body" in error));
 
   if (isJsonBodyParseFailure) {
+    logWarn("Request body parse failed", { code: "INVALID_JSON" });
     return response.status(400).json({
       ok: false,
       error: "Request body must be valid JSON.",
@@ -51,8 +53,12 @@ app.use("/api/auth", authRouter);
 app.use("/api/generate", requireDemoSession, generationRouter);
 
 app.use((error, _request, response, _next) => {
-  console.error(error);
   if (error instanceof HttpError) {
+    if (error.status >= 500) {
+      logError("HTTP error", error);
+    } else {
+      logWarn("HTTP error", { code: error.code, httpStatus: error.status });
+    }
     return response.status(error.status).json({
       ok: false,
       error: error.message,
@@ -60,6 +66,7 @@ app.use((error, _request, response, _next) => {
       issues: [],
     });
   }
+  logError("Unhandled request error", error);
   const status = typeof error?.status === "number" && error.status >= 400 ? error.status : 500;
   const message =
     status >= 500
@@ -76,8 +83,8 @@ app.use((error, _request, response, _next) => {
 const server = app.listen(port, () => {
   const { liveOpenAi, liveGoogle } = getGenerationProviderConfig();
   const googleRuntime = getGoogleRuntimeLogSummary();
-  console.log(`Simple AI Agents API listening on http://localhost:${port}`);
-  console.info("Live provider readiness at startup", {
+  logInfo(`Simple AI Agents API listening on http://localhost:${port}`);
+  logInfo("Live provider readiness at startup", {
     liveOpenAi: {
       configured: liveOpenAi.configured,
       ready: liveOpenAi.ready,
@@ -104,11 +111,11 @@ const server = app.listen(port, () => {
 
 server.on("error", (error) => {
   if (error?.code === "EADDRINUSE") {
-    console.error(
+    logError(
       `Port ${port} is already in use. Stop the other process, set PORT to a free port, or run "npm run dev" (it picks a free port when PORT is unset).`,
     );
     process.exit(1);
   }
-  console.error(error);
+  logError("Server failed to start", error);
   process.exit(1);
 });

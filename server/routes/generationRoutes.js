@@ -2,6 +2,7 @@ import express from "express";
 import { ProviderAdapterError } from "../errors/providerAdapterError.js";
 import { mapGenerationErrorToHttp } from "../http/mapGenerationErrorToHttp.js";
 import { runAgentGeneration } from "../services/generationAgentService.js";
+import { logError, logWarn } from "../logging/trainingLog.js";
 import { validateGenerationRequest } from "../validation/generationRequest.js";
 
 export const generationRouter = express.Router();
@@ -16,6 +17,7 @@ function jsonContentTypeMediaType(contentType) {
 
 function requireJsonContentType(request, response, next) {
   if (jsonContentTypeMediaType(request.headers["content-type"]) !== "application/json") {
+    logWarn("Generation request rejected", { code: "UNSUPPORTED_MEDIA_TYPE" });
     return response.status(415).json({
       ok: false,
       error: 'Content-Type must be application/json (e.g. application/json; charset=utf-8).',
@@ -38,6 +40,10 @@ function requireJsonContentType(request, response, next) {
 generationRouter.post("/", requireJsonContentType, async (request, response) => {
   const validation = validateGenerationRequest(request.body);
   if (!validation.success) {
+    logWarn("Generation request validation failed", {
+      code: "VALIDATION_ERROR",
+      issueCount: validation.issues?.length ?? 0,
+    });
     return response.status(400).json({
       ok: false,
       error: validation.error,
@@ -53,16 +59,10 @@ generationRouter.post("/", requireJsonContentType, async (request, response) => 
     return response.status(200).json({ ok: true, data });
   } catch (error) {
     const mapped = mapGenerationErrorToHttp(error);
-    if (error instanceof ProviderAdapterError && error.diagnostics) {
-      console.error("Generation provider adapter failure", {
-        providerMode: validatedBody.providerMode,
-        providerId: validatedBody.providerId,
-        adapterCode: error.code,
-        adapterMessage: error.message,
-        diagnostics: error.diagnostics,
-      });
-    } else if (mapped.logError) {
-      console.error(error);
+    if (mapped.logError) {
+      logError("Generation request failed unexpectedly", error);
+    } else if (!(error instanceof ProviderAdapterError)) {
+      logWarn("Generation request failed", { code: mapped.code, httpStatus: mapped.status });
     }
     return response.status(mapped.status).json({
       ok: false,

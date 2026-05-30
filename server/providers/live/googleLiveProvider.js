@@ -1,4 +1,5 @@
 import { ProviderAdapterError } from "../../errors/providerAdapterError.js";
+import { logWarn } from "../../logging/trainingLog.js";
 import {
   DEFAULT_GOOGLE_IMAGE_MODEL,
   googleImageAspectRatio,
@@ -191,20 +192,6 @@ export async function generateGoogleLiveImage({ providerPrompt, imageQuality, im
     generationConfig,
   };
 
-  console.info("Google live image request", {
-    provider: runtime.provider,
-    authMethod: runtime.authMethod,
-    httpMethod: "POST",
-    baseUrlHost: runtime.baseUrlHost,
-    requestPath: runtime.requestPath,
-    model: runtime.model,
-    projectName: runtime.projectName ?? undefined,
-    projectNumber: runtime.projectNumber ?? undefined,
-    imageConfigEnabled: googleModelSupportsImageConfig(model),
-    aspectRatio: googleModelSupportsImageConfig(model) ? resolvedImageSize : undefined,
-    imageResolution: googleModelSupportsImageConfig(model) ? resolvedImageQuality : undefined,
-  });
-
   let response;
   try {
     response = await fetch(url, {
@@ -216,8 +203,10 @@ export async function generateGoogleLiveImage({ providerPrompt, imageQuality, im
       body: JSON.stringify(body),
     });
   } catch (networkError) {
-    console.error("Google live image network error", {
-      ...runtime,
+    logWarn("Google live image network error", {
+      provider: runtime.provider,
+      baseUrlHost: runtime.baseUrlHost,
+      model: runtime.model,
       errorCategory: "network",
       errorMessage: networkError instanceof Error ? networkError.message : "fetch failed",
     });
@@ -239,13 +228,13 @@ export async function generateGoogleLiveImage({ providerPrompt, imageQuality, im
     const parsed = parseGoogleApiError(json, response.status);
     const classification = classifyGoogleApiError(response.status, parsed);
     const logPayload = buildGoogleErrorLogPayload(runtime, response.status, classification);
-    console.error("Google live image API error", logPayload);
+    logWarn("Google live image API error", logPayload);
     throw providerErrorFromGoogleClassification(classification, runtime);
   }
 
   const inline = extractGoogleInlineImage(json);
   if (!inline) {
-    console.error("Google Gemini response missing inline image data", {
+    logWarn("Google Gemini response missing inline image data", {
       provider: runtime.provider,
       model: runtime.model,
       baseUrlHost: runtime.baseUrlHost,

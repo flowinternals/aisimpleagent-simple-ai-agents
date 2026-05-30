@@ -1,14 +1,12 @@
+import {
+  DEFERRED_PRODUCTION_SECURITY_HEADER_NAMES,
+  TRAINING_BASELINE_SECURITY_HEADERS,
+} from "../../../shared/trainingTransportHeaders.js";
+
 /** Default CORS origin when the API runs with stock training-build config. */
 export const DEFAULT_TRAINING_CORS_ORIGIN = "http://localhost:5173";
 
-/** Production edge headers that must stay off the localhost training API. */
-export const DEFERRED_PRODUCTION_HEADER_NAMES = [
-  "strict-transport-security",
-  "content-security-policy",
-  "x-frame-options",
-  "referrer-policy",
-  "permissions-policy",
-];
+export { DEFERRED_PRODUCTION_SECURITY_HEADER_NAMES as DEFERRED_PRODUCTION_HEADER_NAMES };
 
 /**
  * @param {Headers | Record<string, string>} headers
@@ -29,6 +27,39 @@ export function toLowerCaseHeaderMap(headers) {
     map[key.toLowerCase()] = value;
   }
   return map;
+}
+
+/**
+ * @param {Headers | Record<string, string>} headers
+ * @returns {{ ok: boolean, issues: string[] }}
+ */
+export function evaluateBaselineSecurityHeadersPresent(headers) {
+  const map = toLowerCaseHeaderMap(headers);
+  /** @type {string[]} */
+  const issues = [];
+  for (const [name, expectedValue] of Object.entries(TRAINING_BASELINE_SECURITY_HEADERS)) {
+    const actual = map[name.toLowerCase()];
+    if (actual !== expectedValue) {
+      issues.push(`expected ${name}: ${expectedValue}, got ${actual ?? "(missing)"}`);
+    }
+  }
+  return { ok: issues.length === 0, issues };
+}
+
+/**
+ * @param {Headers | Record<string, string>} headers
+ * @returns {{ ok: boolean, issues: string[] }}
+ */
+export function evaluateDeferredProductionHeadersAbsent(headers) {
+  const map = toLowerCaseHeaderMap(headers);
+  /** @type {string[]} */
+  const issues = [];
+  for (const name of DEFERRED_PRODUCTION_SECURITY_HEADER_NAMES) {
+    if (map[name]) {
+      issues.push(`expected ${name} to be absent on localhost training API, got ${map[name]}`);
+    }
+  }
+  return { ok: issues.length === 0, issues };
 }
 
 /**
@@ -59,11 +90,8 @@ export function evaluateTrainingBuildTransportHeaders(headers, options = {}) {
     }
   }
 
-  for (const name of DEFERRED_PRODUCTION_HEADER_NAMES) {
-    if (map[name]) {
-      issues.push(`expected ${name} to be absent on localhost training API, got ${map[name]}`);
-    }
-  }
+  issues.push(...evaluateBaselineSecurityHeadersPresent(headers).issues);
+  issues.push(...evaluateDeferredProductionHeadersAbsent(headers).issues);
 
   return { ok: issues.length === 0, issues };
 }

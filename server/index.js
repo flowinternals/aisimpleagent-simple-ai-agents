@@ -9,12 +9,14 @@ import {
 import { authRouter } from "./routes/authRoutes.js";
 import { generationRouter } from "./routes/generationRoutes.js";
 import { requireDemoSession } from "./middleware/requireDemoSession.js";
+import { applyTrainingTransportHeaders } from "./middleware/applyTrainingTransportHeaders.js";
 
 const app = express();
 const port = Number(process.env.PORT || 8787);
 const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:5173";
 
 app.use(cors({ origin: corsOrigin, credentials: true }));
+app.use(applyTrainingTransportHeaders);
 app.use(express.json({ limit: "2mb" }));
 
 app.use((error, _request, response, next) => {

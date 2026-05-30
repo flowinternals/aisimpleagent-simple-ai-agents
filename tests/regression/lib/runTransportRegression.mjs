@@ -1,6 +1,8 @@
 import { fetchHeaders } from "./transportRegressionClient.mjs";
 import {
   DEFAULT_TRAINING_CORS_ORIGIN,
+  evaluateBaselineSecurityHeadersPresent,
+  evaluateDeferredProductionHeadersAbsent,
   evaluateDemoSessionSetCookieFlags,
   evaluateDisallowedOriginCorsRejection,
   evaluateTrainingBuildTransportHeaders,
@@ -73,12 +75,30 @@ export async function regressionProductionEdgeHeadersAbsent(apiBase, reporter) {
     reporter.fail(`GET /api/health expected 200, got ${response.status}`);
     return;
   }
-  const evaluation = evaluateTrainingBuildTransportHeaders(headers);
+  const evaluation = evaluateDeferredProductionHeadersAbsent(headers);
   if (!evaluation.ok) {
     reporter.fail(`production edge headers must stay absent: ${evaluation.issues.join("; ")}`);
     return;
   }
   reporter.pass("production edge headers (HSTS/CSP/X-Frame-Options) remain absent on localhost API");
+}
+
+/**
+ * @param {string} apiBase
+ * @param {RegressionReporter} reporter
+ */
+export async function regressionBaselineSecurityHeadersPresent(apiBase, reporter) {
+  const { response, headers } = await fetchHeaders(apiBase, "/api/health");
+  if (response.status !== 200) {
+    reporter.fail(`GET /api/health expected 200, got ${response.status}`);
+    return;
+  }
+  const evaluation = evaluateBaselineSecurityHeadersPresent(headers);
+  if (!evaluation.ok) {
+    reporter.fail(`baseline security headers: ${evaluation.issues.join("; ")}`);
+    return;
+  }
+  reporter.pass("baseline security headers (Referrer-Policy, X-Content-Type-Options) are present");
 }
 
 /**
@@ -148,6 +168,7 @@ export async function runTransportRegression(options = {}) {
 
   await regressionAllowedOriginCorsHeaders(apiBase, configuredCorsOrigin, reporter);
   await regressionDisallowedOriginNotAccepted(apiBase, configuredCorsOrigin, reporter);
+  await regressionBaselineSecurityHeadersPresent(apiBase, reporter);
   await regressionProductionEdgeHeadersAbsent(apiBase, reporter);
   await regressionDemoSessionCookieTransportFlags(apiBase, demoUserId, demoPassword, reporter);
 

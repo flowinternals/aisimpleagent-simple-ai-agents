@@ -21,12 +21,24 @@ describe("transportSecurityAssertions", () => {
       {
         "Access-Control-Allow-Origin": DEFAULT_TRAINING_CORS_ORIGIN,
         "Access-Control-Allow-Credentials": "true",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "X-Content-Type-Options": "nosniff",
         "X-Powered-By": "Express",
       },
       { requestOrigin: DEFAULT_TRAINING_CORS_ORIGIN },
     );
     assert.equal(result.ok, true);
     assert.deepEqual(result.issues, []);
+  });
+
+  it("evaluateTrainingBuildTransportHeaders rejects missing baseline security headers", () => {
+    const result = evaluateTrainingBuildTransportHeaders({
+      "Access-Control-Allow-Origin": DEFAULT_TRAINING_CORS_ORIGIN,
+      "Access-Control-Allow-Credentials": "true",
+    });
+    assert.equal(result.ok, false);
+    assert.ok(result.issues.some((issue) => issue.includes("Referrer-Policy")));
+    assert.ok(result.issues.some((issue) => issue.includes("X-Content-Type-Options")));
   });
 
   it("evaluateTrainingBuildTransportHeaders rejects missing CORS credentials", () => {

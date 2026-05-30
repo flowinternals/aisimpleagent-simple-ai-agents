@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { PreviewImageFullscreen } from "./components/PreviewImageFullscreen";
+import { DemoSignInScreen } from "./components/DemoSignInScreen";
 import tdgLogoMark from "./assets/tdg_logo_mark.png";
 import { parseGenerationApiSuccess, type GenerationResponse } from "./types/generation";
 import {
@@ -41,9 +42,11 @@ import {
 import { buildGenerationRequestBody } from "../shared/buildGenerationRequestBody.js";
 import { GENERATION_PROMPT_MAX_LENGTH } from "../shared/generationLimits.js";
 import { getPreviewPhase, shouldShowPreviewImage } from "../shared/previewState.js";
+import { parseDemoAuthError, parseDemoSessionResponse, type DemoUser } from "./types/demoSession";
 import "./App.css";
 
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
+const fetchCredentials: RequestCredentials = "include";
 const HISTORY_MAX_ENTRIES = 24;
 
 const EXAMPLE_PROMPTS: Record<string, string> = {
@@ -135,6 +138,10 @@ function previewStatusLabel(phase: ReturnType<typeof getPreviewPhase>): string {
 }
 
 export default function App() {
+  const [demoUser, setDemoUser] = useState<DemoUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [signInLoading, setSignInLoading] = useState(false);
+  const [signInError, setSignInError] = useState("");
   const [prompt, setPrompt] = useState(EXAMPLE_PROMPTS.architecture);
   const [imageQuality, setImageQuality] = useState<ImageQuality>(DEFAULT_IMAGE_QUALITY);
   const [imageTheme, setImageTheme] = useState<ImageTheme>(DEFAULT_IMAGE_THEME);
@@ -178,6 +185,79 @@ export default function App() {
     }
   }, [showPreviewImage, imageSrc]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSession() {
+      try {
+        const response = await fetch(`${apiBase}/api/auth/session`, { credentials: fetchCredentials });
+        const payload: unknown = await response.json();
+        if (cancelled) {
+          return;
+        }
+        const user = response.ok ? parseDemoSessionResponse(payload) : null;
+        setDemoUser(user);
+        setSignInError("");
+      } catch {
+        if (!cancelled) {
+          setDemoUser(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setAuthLoading(false);
+        }
+      }
+    }
+
+    void loadSession();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleDemoSignIn(userId: string, password: string) {
+    setSignInLoading(true);
+    setSignInError("");
+    try {
+      const response = await fetch(`${apiBase}/api/auth/sign-in`, {
+        method: "POST",
+        credentials: fetchCredentials,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, password }),
+      });
+      const payload: unknown = await response.json();
+      const user = response.ok ? parseDemoSessionResponse(payload) : null;
+      if (!user) {
+        setSignInError(parseDemoAuthError(payload, "Sign-in failed."));
+        setDemoUser(null);
+        return;
+      }
+      setDemoUser(user);
+      setSignInError("");
+    } catch {
+      setSignInError("Could not reach the sign-in endpoint. Is npm run dev running?");
+      setDemoUser(null);
+    } finally {
+      setSignInLoading(false);
+    }
+  }
+
+  async function handleDemoSignOut() {
+    try {
+      await fetch(`${apiBase}/api/auth/sign-out`, {
+        method: "POST",
+        credentials: fetchCredentials,
+      });
+    } catch {
+      /* still clear local UI state; server session is the source of truth on next request */
+    }
+    setDemoUser(null);
+    setResult(null);
+    setPreviewError(null);
+    setHistory([]);
+    setSettingsOpen(false);
+  }
+
   function handlePreviewImageDoubleClick() {
     if (showPreviewImage && imageSrc) {
       setPreviewFullscreenOpen(true);
@@ -216,7 +296,7 @@ export default function App() {
 
     async function loadLiveHealth() {
       try {
-        const response = await fetch(`${apiBase}/api/health`);
+        const response = await fetch(`${apiBase}/api/health`, { credentials: fetchCredentials });
         const payload: unknown = await response.json();
         if (cancelled) {
           return;
@@ -252,6 +332,7 @@ export default function App() {
     try {
       const response = await fetch(`${apiBase}/api/generate`, {
         method: "POST",
+        credentials: fetchCredentials,
         headers: {
           "Content-Type": "application/json",
         },
@@ -335,6 +416,24 @@ export default function App() {
     !prompt.trim() ||
     (providerSettings.providerMode === "live" && selectedLiveHealth !== null && !selectedLiveHealth.ready);
 
+  if (authLoading) {
+    return (
+      <div className="tdg-app">
+        <div className="tdg-signin-page" role="status" aria-live="polite">
+          <p className="tdg-signin-sub">Checking demo session…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!demoUser) {
+    return (
+      <div className="tdg-app">
+        <DemoSignInScreen loading={signInLoading} error={signInError} onSubmit={handleDemoSignIn} />
+      </div>
+    );
+  }
+
   return (
     <div className="tdg-app">
       <header className="tdg-topnav">
@@ -342,6 +441,17 @@ export default function App() {
           <div className="tdg-brand">
             <img className="tdg-logo-mark" src={tdgLogoMark} alt="" aria-hidden />
             <span className="tdg-brand-title">Technical Diagram Generator</span>
+          </div>
+          <div className="tdg-user-bar">
+            <span className="tdg-user-chip" title={`Signed in as ${demoUser.displayName}`}>
+              <span className="tdg-user-avatar" aria-hidden>
+                {demoUser.avatarInitial}
+              </span>
+              <span className="tdg-user-name">{demoUser.displayName}</span>
+            </span>
+            <button type="button" className="tdg-signout-btn" onClick={() => void handleDemoSignOut()}>
+              Sign out
+            </button>
           </div>
         </div>
       </header>

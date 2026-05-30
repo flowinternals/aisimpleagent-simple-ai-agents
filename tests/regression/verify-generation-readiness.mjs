@@ -20,6 +20,41 @@ const { mockReadiness: mockPrompt } = JSON.parse(
 
 const apiBase = (process.env.VERIFY_API_BASE || "http://127.0.0.1:8787").replace(/\/$/, "");
 const runLive = process.argv.includes("--live");
+const demoUserId = process.env.DEMO_USER_ID?.trim();
+const demoPassword = process.env.DEMO_PASSWORD;
+
+function extractSessionCookie(setCookieHeader) {
+  if (!setCookieHeader) {
+    return "";
+  }
+  const values = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
+  for (const entry of values) {
+    const match = /^tdg_demo_session=([^;]+)/.exec(entry);
+    if (match) {
+      return decodeURIComponent(match[1]);
+    }
+  }
+  return "";
+}
+
+async function signInForRegression() {
+  if (!demoUserId || demoPassword === undefined || demoPassword === "") {
+    fail("DEMO_USER_ID and DEMO_PASSWORD must be set for test:readiness (match server .env.local)");
+    return "";
+  }
+  const signIn = await fetchJson("/api/auth/sign-in", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId: demoUserId, password: demoPassword }),
+  });
+  const sessionCookie = extractSessionCookie(signIn.setCookie);
+  if (!signIn.response.ok || !sessionCookie) {
+    fail(`demo sign-in failed with status ${signIn.response.status}`);
+    return "";
+  }
+  pass(`demo sign-in accepted for user=${signIn.body?.user?.userId ?? demoUserId}`);
+  return `tdg_demo_session=${encodeURIComponent(sessionCookie)}`;
+}
 
 async function fetchJson(path, init) {
   const response = await fetch(`${apiBase}${path}`, init);
@@ -29,7 +64,8 @@ async function fetchJson(path, init) {
   } catch {
     body = null;
   }
-  return { response, body };
+  const setCookie = response.headers.getSetCookie?.() ?? response.headers.get("set-cookie");
+  return { response, body, setCookie };
 }
 
 function fail(message) {
@@ -78,9 +114,17 @@ if (!health.response.ok || !health.body?.liveOpenAi || !health.body?.liveGoogle)
   }
 }
 
+const sessionCookie = await signInForRegression();
+if (process.exitCode) {
+  process.exit(process.exitCode);
+}
+
 const mockGenerate = await fetchJson("/api/generate", {
   method: "POST",
-  headers: { "Content-Type": "application/json" },
+  headers: {
+    "Content-Type": "application/json",
+    ...(sessionCookie ? { Cookie: sessionCookie } : {}),
+  },
   body: JSON.stringify({
     prompt: mockPrompt,
     providerMode: "mock",
@@ -105,7 +149,10 @@ if (runLive) {
     console.log("Live generate starting (may take 20-40 seconds)...");
     const liveGenerate = await fetchJson("/api/generate", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(sessionCookie ? { Cookie: sessionCookie } : {}),
+      },
       body: JSON.stringify({
         prompt: mockPrompt,
         providerMode: "live",

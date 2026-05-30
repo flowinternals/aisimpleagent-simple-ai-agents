@@ -6,13 +6,15 @@ import {
   getGenerationProviderConfig,
   getGoogleRuntimeLogSummary,
 } from "./config/providerRuntimeConfig.js";
+import { authRouter } from "./routes/authRoutes.js";
 import { generationRouter } from "./routes/generationRoutes.js";
+import { requireDemoSession } from "./middleware/requireDemoSession.js";
 
 const app = express();
 const port = Number(process.env.PORT || 8787);
 const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:5173";
 
-app.use(cors({ origin: corsOrigin }));
+app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json({ limit: "2mb" }));
 
 app.use((error, _request, response, next) => {
@@ -43,7 +45,8 @@ app.get("/api/health", (_request, response) => {
   });
 });
 
-app.use("/api/generate", generationRouter);
+app.use("/api/auth", authRouter);
+app.use("/api/generate", requireDemoSession, generationRouter);
 
 app.use((error, _request, response, _next) => {
   console.error(error);

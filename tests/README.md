@@ -14,19 +14,25 @@ This folder is the long-term home for **reusable, cross-cutting test assets** in
 
 | Command | What it runs |
 |---------|----------------|
-| `npm test` | Colocated Node unit tests (`shared/`, `server/`) plus Vitest (`src/`) |
-| `npm run test:unit` | Node unit tests only |
-| `npm run test:readiness` | Mock HTTP regression gate: `tests/regression/verify-generation-readiness.mjs` |
+| `npm test` | Colocated Node unit tests (`shared/`, `server/`, `tests/regression/lib/`) plus Vitest (`src/`) |
+| `npm run test:unit` | Node unit tests only (`shared/`, `server/`, `tests/regression/lib/`) |
+| `npm run test:readiness` | Mock HTTP regression gate: `tests/regression/verify-generation-readiness.mjs` (requires demo sign-in env + running API) |
 | `npm run test:readiness:live` | Optional OpenAI live smoke (requires running API + credentials) |
+| `npm run test:auth` | Demo sign-in regression gate: wrong sign-in, correct sign-in + session, signed-out protected route, sign-out (`npm run test:auth` → `tests/regression/verify-demo-auth.mjs`) |
+| `npm run test:authorization` | Protected `POST /api/generate` authorization regression: signed-out, invalid/cleared session, signed-in allow, body permission-claims rejected (`tests/regression/verify-authorization.mjs`) |
 | `npm run test:secrets` | Secret-exposure regression: `.env.example` / `.env.local` discipline + Gitleaks tracked + history (no server; requires Gitleaks) |
 
-`test:readiness` expects the dev API at `http://127.0.0.1:8787` by default (`VERIFY_API_BASE` overrides).
+`test:readiness`, `test:auth`, and `test:authorization` expect the dev API at `http://127.0.0.1:8787` by default (`VERIFY_API_BASE` overrides) and `DEMO_USER_ID` / `DEMO_PASSWORD` matching the server's `.env.local`.
 
 ## Where tests live today
 
 ### In this tree (reusable / cross-cutting)
 
-- **`tests/regression/verify-generation-readiness.mjs`** — health check + mock `POST /api/generate`; optional `--live` OpenAI smoke.
+- **`tests/regression/verify-generation-readiness.mjs`** — demo sign-in + health check + mock `POST /api/generate`; optional `--live` OpenAI smoke.
+- **`tests/regression/verify-demo-auth.mjs`** — reusable demo sign-in regression gate (`npm run test:auth`); orchestrates checks in `tests/regression/lib/runDemoAuthRegression.mjs`.
+- **`tests/regression/verify-authorization.mjs`** — protected-route authorization regression gate (`npm run test:authorization`); orchestrates checks in `tests/regression/lib/runAuthorizationRegression.mjs`.
+- **`tests/regression/lib/demoAuthRegressionClient.mjs`** — HTTP/cookie helpers for auth regression; unit-tested in `tests/regression/lib/demoAuthRegressionClient.test.js`.
+- **`tests/regression/lib/runAuthorizationRegression.mjs`** — route-level `POST /api/generate` authorization checks (signed-out, invalid/cleared session, signed-in allow, body claims).
 - **`tests/regression/verify-secret-exposure.mjs`** — `.env.example` placeholders, `.env.local` gitignore/tracking, Gitleaks tracked-surface + git-history scans (commit/push surface).
 - **`tests/fixtures/generation-prompts.json`** — shared prompts for regression scripts.
 - **`tests/e2e/`** — passive review reports and future browser/full-stack E2E assets.

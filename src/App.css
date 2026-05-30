@@ -55,6 +55,8 @@
 .tdg-topnav-inner {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   height: 56px;
 }
 
@@ -996,4 +998,127 @@
   .tdg-history-card {
     flex: 0 0 calc((100% - 12px) / 2);
   }
+}
+
+.tdg-user-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.tdg-user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tdg-user-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--tdg-accent), var(--tdg-accent-2));
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.tdg-user-name {
+  font-size: 0.875rem;
+  color: var(--tdg-muted);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tdg-signout-btn {
+  border: 1px solid var(--tdg-border);
+  background: transparent;
+  color: var(--tdg-text);
+  border-radius: var(--tdg-radius);
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.tdg-signout-btn:hover {
+  border-color: rgba(120, 140, 190, 0.45);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tdg-signin-page {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+}
+
+.tdg-signin-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 28px;
+}
+
+.tdg-signin-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.tdg-signin-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.tdg-signin-sub {
+  margin: 6px 0 0;
+  color: var(--tdg-muted);
+  font-size: 0.875rem;
+}
+
+.tdg-signin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tdg-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--tdg-border);
+  border-radius: var(--tdg-radius);
+  background: var(--tdg-surface-elevated);
+  color: var(--tdg-text);
+  padding: 10px 12px;
+  font: inherit;
+}
+
+.tdg-input:focus {
+  outline: 2px solid rgba(124, 92, 255, 0.45);
+  outline-offset: 1px;
+}
+
+.tdg-signin-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--tdg-radius);
+  background: var(--tdg-danger-bg);
+  border: 1px solid var(--tdg-danger-border);
+  color: var(--tdg-danger-text);
+  font-size: 0.875rem;
+}
+
+.tdg-signin-submit {
+  width: 100%;
+  justify-content: center;
 }

@@ -13,6 +13,7 @@
     "test:unit": "node --test shared/*.test.js server/**/*.test.js",
     "test:readiness": "node tests/regression/verify-generation-readiness.mjs",
     "test:readiness:live": "node tests/regression/verify-generation-readiness.mjs --live",
+    "test:secrets": "node tests/regression/verify-secret-exposure.mjs",
     "check:text": "node scripts/check-text-hygiene.js",
     "secrets:scan": "node scripts/run-gitleaks.mjs detect --source . --verbose --no-git",
     "secrets:scan:history": "node scripts/run-gitleaks.mjs detect --source . --verbose",

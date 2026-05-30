@@ -18,6 +18,7 @@ This folder is the long-term home for **reusable, cross-cutting test assets** in
 | `npm run test:unit` | Node unit tests only |
 | `npm run test:readiness` | Mock HTTP regression gate: `tests/regression/verify-generation-readiness.mjs` |
 | `npm run test:readiness:live` | Optional OpenAI live smoke (requires running API + credentials) |
+| `npm run test:secrets` | Secret-exposure regression: `.env.example` / `.env.local` discipline + Gitleaks tracked + history (no server; requires Gitleaks) |
 
 `test:readiness` expects the dev API at `http://127.0.0.1:8787` by default (`VERIFY_API_BASE` overrides).
 
@@ -26,6 +27,7 @@ This folder is the long-term home for **reusable, cross-cutting test assets** in
 ### In this tree (reusable / cross-cutting)
 
 - **`tests/regression/verify-generation-readiness.mjs`** — health check + mock `POST /api/generate`; optional `--live` OpenAI smoke.
+- **`tests/regression/verify-secret-exposure.mjs`** — `.env.example` placeholders, `.env.local` gitignore/tracking, Gitleaks tracked-surface + git-history scans (commit/push surface).
 - **`tests/fixtures/generation-prompts.json`** — shared prompts for regression scripts.
 - **`tests/e2e/`** — passive review reports and future browser/full-stack E2E assets.
 

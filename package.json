@@ -22,6 +22,8 @@
     "test:secrets": "node tests/regression/verify-secret-exposure.mjs",
     "test:logging": "node tests/regression/verify-logging.mjs",
     "check:text": "node scripts/check-text-hygiene.js",
+    "audit:check": "npm audit",
+    "test:release-hygiene": "node tests/regression/verify-release-hygiene.mjs",
     "secrets:scan": "node scripts/run-gitleaks.mjs detect --source . --verbose --no-git",
     "secrets:scan:history": "node scripts/run-gitleaks.mjs detect --source . --verbose",
     "secrets:scan:tracked": "node scripts/run-gitleaks.mjs tracked"

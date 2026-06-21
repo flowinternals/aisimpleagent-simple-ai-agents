@@ -1,12 +1,21 @@
 # SkipRope Foundation - Simple AI Agents Companion Repo
 
 <p align="center">
-  <img src="./docs/images/skiprope-foundation-simplaiagents.png" alt="SkipRope Foundation - Simple AI Agents" width="900">
+  <img src="./docs/images/hero.png" alt="SkipRope Foundation - Simple AI Agents" width="900">
 </p>
 
 This repository is the companion build reference for the Flowinternals SkipRope Foundation - Simple AI Agents series from [Flowinternals.net](https://flowinternals.net/).
 
 It is here to help you move through the series with more confidence. The walkthrough documents explain what each phase is trying to teach. This repo shows how the application changes as those phases progress.
+
+Copyright Flowinternals. All rights reserved.
+
+This repository is publicly visible for reference only.
+No license is granted to use, copy, modify, distribute, sublicense, or commercialize any part of this codebase or its associated assets without prior written permission.
+
+Flowinternals 2026. All rights reserved.
+
+flowinternals is a wholly owned product of Sagesilver Pty Ltd (ABN: 50096086821).
 
 <p align="center">
   <img src="./docs/images/flowinternals-logo-transparent.png" alt="Flowinternals logo" width="420">
